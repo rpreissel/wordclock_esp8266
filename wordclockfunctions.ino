@@ -1,5 +1,6 @@
 
-const String clockStringGerman =  "ESPISTAFUNFVIERTELZEHNZWANZIGUVORTECHNICNACHHALBMELFUNFXCONTROLLEREINSEAWZWEIDREITUMVIERSECHSQYACHTSIEBENZWOLFZEHNEUNJUHR";
+//const String clockStringGerman =  "ESPISTKFUNFDREIVIERTELZWANZIGZEHNUMINUTENULLVORQKJANACHHALBNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
+const String clockStringGerman =  "espistkfunfdreiviertelzwanzigzehnuminutenullvorqkjanachhalbNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
 
 /**
  * @brief control the four minute indicator LEDs
@@ -96,6 +97,256 @@ int showStringOnClock(String message, uint32_t color){
  * @param minutes minutes of the time value
  * @return String time as sentence
  */
+String timeToString(uint8_t hours,uint8_t minutes){
+  Serial.println(hours);
+  Serial.println(minutes);
+  
+  //ES IST
+  String message = "es ist ";
+
+  
+  //show minutes
+  if(minutes >= 5 && minutes < 10)
+  {
+    message += "funf nach ";
+  }
+  else if(minutes >= 10 && minutes < 15)
+  {
+    message += "zehn nach ";
+  }
+  else if(minutes >= 15 && minutes < 20)
+  {
+    message += "viertel ";
+  }
+  else if(minutes >= 20 && minutes < 25)
+  {
+    message += "zehn vor halb "; 
+  }
+  else if(minutes >= 25 && minutes < 30)
+  {
+    message += "funf vor halb ";
+  }
+  else if(minutes >= 30 && minutes < 35)
+  {
+    message += "halb ";
+  }
+  else if(minutes >= 35 && minutes < 40)
+  {
+    message += "funf nach halb ";
+  }
+  else if(minutes >= 40 && minutes < 45)
+  {
+    message += "zehn nach halb ";
+  }
+  else if(minutes >= 45 && minutes < 50)
+  {
+    message += "dreiviertel ";
+  }
+  else if(minutes >= 50 && minutes < 55)
+  {
+    message += "zehn vor ";
+  }
+  else if(minutes >= 55 && minutes < 60)
+  {
+    message += "funf vor ";
+  }
+
+  //convert hours to 12h format
+  if(hours >= 12)
+  {
+      hours -= 12;
+  }
+  if(minutes >= 15)
+  {
+      hours++;
+  }
+  if(hours == 12)
+  {
+      hours = 0;
+  }
+
+  // show hours
+  switch(hours)
+  {
+  case 0:
+    message += "ZWOLF ";
+    break;
+  case 1:
+    message += "EIN";
+    //EIN(S)
+    if(minutes > 4){
+      message += "S";
+    }
+    message += " ";
+    break;
+  case 2:
+    message += "ZWEI ";
+    break;
+  case 3:
+    message += "DREI ";
+    break;
+  case 4:
+    message += "VIER ";
+    break;
+  case 5:
+    message += "FUNF ";
+    break;
+  case 6:
+    message += "SECHS ";
+    break;
+  case 7:
+    message += "SIEBEN ";
+    break;
+  case 8:
+    message += "ACHT ";
+    break;
+  case 9:
+    message += "NEUN ";
+    break;
+  case 10:
+    message += "ZEHN ";
+    break;
+  case 11:
+    message += "ELF ";
+    break;
+  }
+  if(minutes < 5)
+  {
+    message += "UHR ";
+  }
+
+  Serial.println(message);
+  logger.logString("time as String: " + String(message));
+
+  return message;
+}
+
+/*
+String timeToString(uint8_t hours,uint8_t minutes){
+  Serial.println(hours);
+  Serial.println(minutes);
+  
+  //ES IST
+  String message = "es ist ";
+
+  
+  //show minutes
+  if(minutes >= 5 && minutes < 10)
+  {
+    message += "funf nach ";
+  }
+  else if(minutes >= 10 && minutes < 15)
+  {
+    message += "zehn nach ";
+  }
+  else if(minutes >= 15 && minutes < 20)
+  {
+    message += "viertel nach ";
+  }
+  else if(minutes >= 20 && minutes < 25)
+  {
+    message += "zehn vor halb "; 
+  }
+  else if(minutes >= 25 && minutes < 30)
+  {
+    message += "funf vor halb ";
+  }
+  else if(minutes >= 30 && minutes < 35)
+  {
+    message += "halb ";
+  }
+  else if(minutes >= 35 && minutes < 40)
+  {
+    message += "funf nach halb ";
+  }
+  else if(minutes >= 40 && minutes < 45)
+  {
+    message += "zehn nach halb ";
+  }
+  else if(minutes >= 45 && minutes < 50)
+  {
+    message += "viertel vor ";
+  }
+  else if(minutes >= 50 && minutes < 55)
+  {
+    message += "zehn vor ";
+  }
+  else if(minutes >= 55 && minutes < 60)
+  {
+    message += "funf vor ";
+  }
+
+  //convert hours to 12h format
+  if(hours >= 12)
+  {
+      hours -= 12;
+  }
+  if(minutes >= 20)
+  {
+      hours++;
+  }
+  if(hours == 12)
+  {
+      hours = 0;
+  }
+
+  // show hours
+  switch(hours)
+  {
+  case 0:
+    message += "ZWOLF ";
+    break;
+  case 1:
+    message += "EIN";
+    //EIN(S)
+    if(minutes > 4){
+      message += "S";
+    }
+    message += " ";
+    break;
+  case 2:
+    message += "ZWEI ";
+    break;
+  case 3:
+    message += "DREI ";
+    break;
+  case 4:
+    message += "VIER ";
+    break;
+  case 5:
+    message += "FUNF ";
+    break;
+  case 6:
+    message += "SECHS ";
+    break;
+  case 7:
+    message += "SIEBEN ";
+    break;
+  case 8:
+    message += "ACHT ";
+    break;
+  case 9:
+    message += "NEUN ";
+    break;
+  case 10:
+    message += "ZEHN ";
+    break;
+  case 11:
+    message += "ELF ";
+    break;
+  }
+  if(minutes < 5)
+  {
+    message += "UHR ";
+  }
+
+  Serial.println(message);
+  logger.logString("time as String: " + String(message));
+
+  return message;
+}
+
+/*
 String timeToString(uint8_t hours,uint8_t minutes){
   Serial.println(hours);
   Serial.println(minutes);
@@ -219,4 +470,4 @@ String timeToString(uint8_t hours,uint8_t minutes){
 
   return message;
 }
-
+*/

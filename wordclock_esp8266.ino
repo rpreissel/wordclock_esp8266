@@ -35,6 +35,8 @@
 #include <WiFiManager.h>                //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <EEPROM.h>                     //from ESP8266 Arduino Core (automatically installed when ESP8266 was installed via Boardmanager)
 
+#include <pins_arduino.h>
+
 // own libraries
 #include "udplogger.h"
 #include "ntp_client_plus.h"
@@ -59,7 +61,7 @@
 #define ADR_MC_BLUE 24
 
 
-#define NEOPIXELPIN 5       // pin to which the NeoPixels are attached
+#define NEOPIXELPIN 12       // pin to which the NeoPixels are attached
 #define NUMPIXELS 125       // number of pixels attached to Attiny85
 #define BUTTONPIN 14        // pin to which the button is attached
 #define LEFT 1
@@ -238,6 +240,7 @@ void setup() {
 
   /** Use WiFiMaanger for handling initial Wifi setup **/
 
+/*
   // Local intialization. Once its business is done, there is no need to keep it around
 
 
@@ -261,12 +264,12 @@ void setup() {
   // Turn off minutes leds
   ledmatrix.setMinIndicator(15, 0);
   ledmatrix.drawOnMatrixInstant();
-
+*/
    
   
   /** (alternative) Use directly STA/AP Mode of ESP8266   **/
   
-  /* 
+   
   // We start by connecting to a WiFi network
   Serial.print("Connecting to ");
   Serial.println(WIFI_SSID);
@@ -314,7 +317,7 @@ void setup() {
     IPAddress myIP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(myIP);
-  }*/
+  }
 
   // init ESP8266 File manager (LittleFS)
   setupFS();
