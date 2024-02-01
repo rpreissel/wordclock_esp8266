@@ -44,11 +44,14 @@
 #include "tetris.h"
 #include "snake.h"
 #include "pong.h"
-
+#include "tools.h"
+#include "clock.h"
 
 // ----------------------------------------------------------------------------------
 //                                        CONSTANTS
 // ----------------------------------------------------------------------------------
+
+const String clockStringGerman =  "espistkfunfdreiviertelzwanzigzehnuminutenullvorqkjanachhalbNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
 
 #define EEPROM_SIZE 30      // size of EEPROM to save persistent variables
 #define ADR_NM_START_H 0
@@ -94,10 +97,6 @@
 // own datatype for matrix movement (snake and spiral)
 enum direction {right, left, up, down};
 
-// width of the led matrix
-#define WIDTH 11
-// height of the led matrix
-#define HEIGHT 11
 
 // own datatype for state machine states
 #define NUM_STATES 6
@@ -153,7 +152,7 @@ WiFiManager wifiManager;
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
 // Note that for older NeoPixel strips you might need to change the third parameter--see the strandtest
 // example for more information on possible values.
-Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(WIDTH, HEIGHT+1, NEOPIXELPIN,
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(LEDMatrix::width, LEDMatrix::height+1, NEOPIXELPIN,
   NEO_MATRIX_TOP + NEO_MATRIX_LEFT +
   NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
   NEO_GRB            + NEO_KHZ800);
@@ -190,6 +189,7 @@ LEDMatrix ledmatrix = LEDMatrix(&matrix, brightness, &logger);
 Tetris mytetris = Tetris(&ledmatrix, &logger);
 Snake mysnake = Snake(&ledmatrix, &logger);
 Pong mypong = Pong(&ledmatrix, &logger);
+Clock germanClock = Clock(clockStringGerman, ledmatrix, logger);
 
 float filterFactor = DEFAULT_SMOOTHING_FACTOR;// stores smoothing factor for led transition
 uint8_t currentState = st_clock;              // stores current state
@@ -345,8 +345,8 @@ void setup() {
 
   if(!ESP.getResetReason().equals("Software/System restart")){
     // test quickly each LED
-    for(int r = 0; r < HEIGHT; r++){
-        for(int c = 0; c < WIDTH; c++){
+    for(int r = 0; r < LEDMatrix::height; r++){
+        for(int c = 0; c < LEDMatrix::width; c++){
         matrix.fillScreen(0);
         matrix.drawPixel(c, r, LEDMatrix::color24to16bit(colors24bit[2]));
         matrix.show();
@@ -383,9 +383,7 @@ void setup() {
   // show the current time for short time in words
   int hours = ntp.getHours24();
   int minutes = ntp.getMinutes();
-  String timeMessage = timeToString(hours, minutes);
-  showStringOnClock(timeMessage, maincolor_clock);
-  drawMinuteIndicator(minutes, maincolor_clock);
+  germanClock.show(hours, minutes, maincolor_clock);
   ledmatrix.drawOnMatrixSmooth(filterFactor);
 
 
@@ -450,8 +448,7 @@ void loop() {
         {
           int hours = ntp.getHours24();
           int minutes = ntp.getMinutes();
-          showStringOnClock(timeToString(hours, minutes), maincolor_clock);
-          drawMinuteIndicator(minutes, maincolor_clock);
+          germanClock.show(hours, minutes, maincolor_clock);
         }
         break;
       // state diclock
@@ -943,29 +940,7 @@ void handleCommand() {
   server.send(204, "text/plain", "No Content"); // this page doesn't send back content --> 204
 }
 
-/**
- * @brief Splits a string at given character and return specified element
- * 
- * @param s string to split
- * @param parser separating character
- * @param index index of the element to return
- * @return String 
- */
-String split(String s, char parser, int index) {
-  String rs="";
-  int parserIndex = index;
-  int parserCnt=0;
-  int rFromIndex=0, rToIndex=-1;
-  while (index >= parserCnt) {
-    rFromIndex = rToIndex+1;
-    rToIndex = s.indexOf(parser,rFromIndex);
-    if (index == parserCnt) {
-      if (rToIndex == 0 || rToIndex == -1) return "";
-      return s.substring(rFromIndex,rToIndex);
-    } else parserCnt++;
-  }
-  return rs;
-}
+
 
 /**
  * @brief Handler for GET requests

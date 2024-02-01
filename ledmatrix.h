@@ -6,11 +6,6 @@
 #include <Adafruit_NeoMatrix.h>
 #include "udplogger.h"
 
-// width of the led matrix
-#define WIDTH 11
-// height of the led matrix
-#define HEIGHT 11
-
 #define DEFAULT_CURRENT_LIMIT 9999
 
 class LEDMatrix{
@@ -31,6 +26,8 @@ class LEDMatrix{
         void setBrightness(uint8_t mybrightness);
         void setCurrentLimit(uint16_t mycurrentLimit);
 
+        constexpr static int width = 11;
+        constexpr static int height = 11;
     private:
 
         Adafruit_NeoMatrix *neomatrix;
@@ -40,10 +37,10 @@ class LEDMatrix{
         uint16_t currentLimit;
 
         // target representation of matrix as 2D array
-        uint32_t targetgrid[HEIGHT][WIDTH] = {0};
+        uint32_t targetgrid[height][width] = {0};
 
         // current representation of matrix as 2D array
-        uint32_t currentgrid[HEIGHT][WIDTH] = {0};
+        uint32_t currentgrid[height][width] = {0};
 
         // target representation of minutes indicator leds
         uint32_t targetindicators[4] = {0, 0, 0, 0};

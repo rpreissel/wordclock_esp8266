@@ -135,7 +135,7 @@ void LEDMatrix::setMinIndicator(uint8_t pattern, uint32_t color)
 void LEDMatrix::gridAddPixel(uint8_t x, uint8_t y, uint32_t color)
 {
   // limit ranges of x and y
-  if(x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
+  if(x >= 0 && x < width && y >= 0 && y < height){
     targetgrid[y][x] = color;
   }
   else{
@@ -150,8 +150,8 @@ void LEDMatrix::gridAddPixel(uint8_t x, uint8_t y, uint32_t color)
 void LEDMatrix::gridFlush(void)
 {
     // set a zero to each pixel
-    for(uint8_t i=0; i<HEIGHT; i++){
-        for(uint8_t j=0; j<WIDTH; j++){
+    for(uint8_t i=0; i<height; i++){
+        for(uint8_t j=0; j<width; j++){
             targetgrid[i][j] = 0;
         }
     }
@@ -187,8 +187,8 @@ void LEDMatrix::drawOnMatrixSmooth(float factor){
 void LEDMatrix::drawOnMatrix(float factor){
   uint16_t totalCurrent = 0;
   // loop over all leds in matrix
-  for(int s = 0; s < WIDTH; s++){
-    for(int z = 0; z < HEIGHT; z++){
+  for(int s = 0; s < width; s++){
+    for(int z = 0; z < height; z++){
       // inplement momentum as smooth transistion function
       uint32_t filteredColor = interpolateColor24bit(currentgrid[z][s], targetgrid[z][s], factor);
       (*neomatrix).drawPixel(s, z, color24to16bit(filteredColor)); 
@@ -200,7 +200,7 @@ void LEDMatrix::drawOnMatrix(float factor){
   // loop over all minute indicator leds
   for(int i = 0; i < 4; i++){
     uint32_t filteredColor = interpolateColor24bit(currentindicators[i], targetindicators[i], factor);
-    (*neomatrix).drawPixel(WIDTH - (1+i), HEIGHT, color24to16bit(filteredColor));
+    (*neomatrix).drawPixel(width - (1+i), height, color24to16bit(filteredColor));
     currentindicators[i] = filteredColor;
     totalCurrent += calcEstimatedLEDCurrent(filteredColor);
   }
