@@ -1,51 +1,27 @@
-
-// ****************************************************************
-// Sketch Esp8266 Filesystem Manager spezifisch sortiert Modular(Tab)
-// created: Jens Fleischer, 2020-06-08
-// last mod: Jens Fleischer, 2020-12-19
-// For more information visit: https://fipsok.de
-// ****************************************************************
-// Hardware: Esp8266
-// Software: Esp8266 Arduino Core 2.7.0 - 3.0.2
-// Geprüft: von 1MB bis 2MB Flash
-// Getestet auf: Nodemcu
-/******************************************************************
-  Copyright (c) 2020 Jens Fleischer. All rights reserved.
-
-  This file is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-  This file is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-*******************************************************************/
-// Diese Version von LittleFS sollte als Tab eingebunden werden.
-// #include <LittleFS.h> #include <ESP8266WebServer.h> müssen im Haupttab aufgerufen werden
-// Die Funktionalität des ESP8266 Webservers ist erforderlich.
-// "server.onNotFound()" darf nicht im Setup des ESP8266 Webserver stehen.
-// Die Funktion "setupFS();" muss im Setup aufgerufen werden.
-/**************************************************************************************/
-
 #include <list>
 #include <tuple>
+#include <LittleFS.h>
+#include "LittleFSServer.h"
 
 const char WARNING[] PROGMEM = R"(<h2>Der Sketch wurde mit "FS:none" kompilliert!)";
 const char HELPER[] PROGMEM = R"(<form method="POST" action="/upload" enctype="multipart/form-data">
 <input type="file" name="[]" multiple><button>Upload</button></form>Lade die fs.html hoch.)";
 
-void setupFS() {                                                                       // Funktionsaufruf "setupFS();" muss im Setup eingebunden werden
+const String formatBytes(size_t const& bytes) {                                        // lesbare Anzeige der Speichergrößen
+  return bytes < 1024 ? static_cast<String>(bytes) + " Byte" : bytes < 1048576 ? static_cast<String>(bytes / 1024.0) + " KB" : static_cast<String>(bytes / 1048576.0) + " MB";
+}
+
+void LittleFSServer::setup() {                                                                       // Funktionsaufruf "setupFS();" muss im Setup eingebunden werden
   LittleFS.begin();
-  server.on("/format", formatFS);
-  server.on("/upload", HTTP_POST, sendResponce, handleUpload);
-  server.onNotFound([]() {
+  server.on("/format", std::bind(&LittleFSServer::formatFS, this));
+  server.on("/upload", HTTP_POST,std::bind(&LittleFSServer::sendResponce, this),std::bind(&LittleFSServer::handleUpload, this));
+  server.onNotFound([&]() {
     if (!handleFile(server.urlDecode(server.uri())))
       server.send(404, "text/plain", "FileNotFound");
   });
 }
 
-bool handleList() {                                                                    // Senden aller Daten an den Client
+bool LittleFSServer::handleList() {                                                                    // Senden aller Daten an den Client
   FSInfo fs_info;  LittleFS.info(fs_info);                                             // Füllt FSInfo Struktur mit Informationen über das Dateisystem
   Dir dir = LittleFS.openDir("/");
   using namespace std;
@@ -65,7 +41,7 @@ bool handleList() {                                                             
       dirList.emplace_back("", dir.fileName(), dir.fileSize());
     }
   }
-  dirList.sort([](const records & f, const records & l) {                              // Dateien sortieren
+  dirList.sort([&server = server](const records & f, const records & l) {                              // Dateien sortieren
     if (server.arg(0) == "1") {
       return get<2>(f) > get<2>(l);
     } else {
@@ -109,7 +85,7 @@ void deleteRecursive(const String &path) {
   LittleFS.rmdir(path);
 }
 
-bool handleFile(String &&path) {
+bool LittleFSServer::handleFile(String &&path) {
   if (server.hasArg("new")) {
     String folderName {server.arg("new")};
     for (auto& c : {34, 37, 38, 47, 58, 59, 92}) for (auto& e : folderName) if (e == c) e = 95;    // Ersetzen der nicht erlaubten Zeichen
@@ -127,7 +103,7 @@ bool handleFile(String &&path) {
   return LittleFS.exists(path) ? ({File f = LittleFS.open(path, "r"); server.streamFile(f, mime::getContentType(path)); f.close(); true;}) : false;
 }
 
-void handleUpload() {                                                                  // Dateien ins Filesystem schreiben
+void LittleFSServer::handleUpload() {                                                                  // Dateien ins Filesystem schreiben
   static File fsUploadFile;
   HTTPUpload& upload = server.upload();
   if (upload.status == UPLOAD_FILE_START) {
@@ -145,16 +121,13 @@ void handleUpload() {                                                           
   }
 }
 
-void formatFS() {                                                                      // Formatiert das Filesystem
+void LittleFSServer::formatFS() {                                                                      // Formatiert das Filesystem
   LittleFS.format();
   sendResponce();
 }
 
-void sendResponce() {
+void LittleFSServer::sendResponce() {
   server.sendHeader("Location", "fs.html");
   server.send(303, "message/http");
 }
 
-const String formatBytes(size_t const& bytes) {                                        // lesbare Anzeige der Speichergrößen
-  return bytes < 1024 ? static_cast<String>(bytes) + " Byte" : bytes < 1048576 ? static_cast<String>(bytes / 1024.0) + " KB" : static_cast<String>(bytes / 1048576.0) + " MB";
-}

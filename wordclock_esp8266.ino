@@ -39,11 +39,9 @@
 
 // own libraries
 #include "udplogger.h"
+#include "LittleFSServer.h"
 #include "ntp_client_plus.h"
 #include "ledmatrix.h"
-#include "tetris.h"
-#include "snake.h"
-#include "pong.h"
 #include "tools.h"
 #include "clock.h"
 
@@ -73,12 +71,7 @@ const String clockStringGerman =  "espistkfunfdreiviertelzwanzigzehnuminutenullv
 #define RECT 5
 
 #define PERIOD_HEARTBEAT 1000
-#define PERIOD_ANIMATION 200
-#define PERIOD_TETRIS 50
-#define PERIOD_SNAKE 50
-#define PERIOD_PONG 10
 #define TIMEOUT_LEDDIRECT 5000
-#define PERIOD_STATECHANGE 10000
 #define PERIOD_NTPUPDATE 30000
 #define PERIOD_TIMEVISUUPDATE 1000
 #define PERIOD_MATRIXUPDATE 100
@@ -94,27 +87,10 @@ const String clockStringGerman =  "espistkfunfdreiviertelzwanzigzehnuminutenullv
 // number of colors in colors array
 #define NUM_COLORS 7
 
-// own datatype for matrix movement (snake and spiral)
-enum direction {right, left, up, down};
-
-
 // own datatype for state machine states
-#define NUM_STATES 6
-enum ClockState {st_clock, st_diclock, st_spiral, st_tetris, st_snake, st_pingpong};
-const String stateNames[] = {"Clock", "DiClock", "Sprial", "Tetris", "Snake", "PingPong"};
-// PERIODS for each state (different for stateAutoChange or Manual mode)
-const uint16_t PERIODS[2][NUM_STATES] = { { PERIOD_TIMEVISUUPDATE, // stateAutoChange = 0
-                                            PERIOD_TIMEVISUUPDATE, 
-                                            PERIOD_ANIMATION,
-                                            PERIOD_TETRIS, 
-                                            PERIOD_SNAKE,  
-                                            PERIOD_PONG},
-                                          { PERIOD_TIMEVISUUPDATE, // stateAutoChange = 1
-                                            PERIOD_TIMEVISUUPDATE, 
-                                            PERIOD_ANIMATION,
-                                            PERIOD_ANIMATION, 
-                                            PERIOD_ANIMATION,  
-                                            PERIOD_PONG}};
+#define NUM_STATES 2
+enum ClockState {st_clock, st_diclock};
+const String stateNames[] = {"Clock", "DiClock"};
 
 // ports
 const unsigned int localPort = 2390;
@@ -148,6 +124,9 @@ DNSServer DnsServer;
 
 // Wifi server. keep around to support resetting.
 WiFiManager wifiManager;
+
+//LittleFSServer
+LittleFSServer littleFSServer(server);
 
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
 // Note that for older NeoPixel strips you might need to change the third parameter--see the strandtest
@@ -186,17 +165,12 @@ UDPLogger logger;
 WiFiUDP NTPUDP;
 NTPClientPlus ntp = NTPClientPlus(NTPUDP, "pool.ntp.org", 1, true);
 LEDMatrix ledmatrix = LEDMatrix(&matrix, brightness, &logger);
-Tetris mytetris = Tetris(&ledmatrix, &logger);
-Snake mysnake = Snake(&ledmatrix, &logger);
-Pong mypong = Pong(&ledmatrix, &logger);
 Clock germanClock = Clock(clockStringGerman, ledmatrix, logger);
 
 float filterFactor = DEFAULT_SMOOTHING_FACTOR;// stores smoothing factor for led transition
 uint8_t currentState = st_clock;              // stores current state
-bool stateAutoChange = false;                 // stores state of automatic state change
 bool nightMode = false;                       // stores state of nightmode
 uint32_t maincolor_clock = colors24bit[2];    // color of the clock and digital clock
-uint32_t maincolor_snake = colors24bit[1];    // color of the random snake animation
 bool apmode = false;                          // stores if WiFi AP mode is active
 
 // nightmode settings
@@ -320,7 +294,7 @@ void setup() {
   }
 
   // init ESP8266 File manager (LittleFS)
-  setupFS();
+  littleFSServer.setup();
 
   // setup OTA
   setupOTA(hostname);
@@ -386,15 +360,6 @@ void setup() {
   germanClock.show(hours, minutes, maincolor_clock);
   ledmatrix.drawOnMatrixSmooth(filterFactor);
 
-
-  // init all animation modes
-  // init snake
-  randomsnake(true, 8, colors24bit[1], -1);
-  // init spiral
-  spiral(true, sprialDir, WIDTH-6);
-  // init random tetris
-  randomtetris(true);
-
   // Read nightmode setting from EEPROM
   nightModeStartHour = readIntEEPROM(ADR_NM_START_H);
   nightModeStartMin = readIntEEPROM(ADR_NM_START_M);
@@ -441,7 +406,7 @@ void loop() {
   }
 
   // handle mode behaviours (trigger loopCycles of different modes depending on current mode)
-  if(!nightMode && (millis() - lastStep > PERIODS[stateAutoChange][currentState]) && (millis() - lastLEDdirect > TIMEOUT_LEDDIRECT)){
+  if(!nightMode && (millis() - lastStep > PERIOD_TIMEVISUUPDATE) && (millis() - lastLEDdirect > TIMEOUT_LEDDIRECT)){
     switch(currentState){
       // state clock
       case st_clock:
@@ -459,57 +424,6 @@ void loop() {
           showDigitalClock(hours, minutes, maincolor_clock);
         }
         break;
-      // state spiral
-      case st_spiral:
-        {
-          int res = spiral(false, sprialDir, WIDTH-6);
-          if(res && sprialDir == 0){
-            // change spiral direction to closing (draw empty leds)
-            sprialDir = 1;
-            // init spiral with new spiral direction
-            spiral(true, sprialDir, WIDTH-6);
-            
-          }else if(res && sprialDir == 1){
-            // reset spiral direction to normal drawing leds
-            sprialDir = 0;
-            // init spiral with new spiral direction
-            spiral(true, sprialDir, WIDTH-6);
-          }
-        }
-        break;
-      // state tetris
-      case st_tetris:
-        {
-          if(stateAutoChange){
-            randomtetris(false);
-          }
-          else{
-            mytetris.loopCycle();
-          }
-        }
-        break;
-      // state snake
-      case st_snake:
-        {
-          if(stateAutoChange){
-            ledmatrix.gridFlush();
-            int res = randomsnake(false, 8, maincolor_snake, -1);
-            if(res){
-              // init snake for next run
-              randomsnake(true, 8, maincolor_snake, -1);
-            }
-          }
-          else{
-            mysnake.loopCycle();
-          }
-        }
-        break;
-      // state pingpong
-      case st_pingpong:
-        {
-          mypong.loopCycle();
-        }
-        break;
     }    
     
     lastStep = millis();
@@ -523,15 +437,6 @@ void loop() {
 
   // handle button press
   handleButton();
-
-  // handle state changes
-  if(stateAutoChange && (millis() - lastStateChange > PERIOD_STATECHANGE) && !nightMode){
-    // increment state variable and trigger state change
-    stateChange((currentState + 1) % NUM_STATES);
-    
-    // save last automatic state change
-    lastStateChange = millis();
-  }
 
   // NTP time update
   if(millis() - lastNTPUpdate > PERIOD_NTPUPDATE){
@@ -600,49 +505,6 @@ void loop() {
 // ----------------------------------------------------------------------------------
 
 /**
- * @brief call entry action of given state
- * 
- * @param state 
- */
-void entryAction(uint8_t state){
-  filterFactor = 0.5;
-  switch(state){
-    case st_spiral:
-      // Init spiral with normal drawing mode
-      sprialDir = 0;
-      spiral(true, sprialDir, WIDTH-6);
-      break;
-    case st_tetris:
-      filterFactor = 1.0; // no smoothing
-      if(stateAutoChange){
-        randomtetris(true);
-      }
-      else{
-        mytetris.ctrlStart();
-      }
-      break;
-    case st_snake:
-      if(stateAutoChange){
-        randomsnake(true, 8, colors24bit[1], -1);
-      }
-      else{
-        filterFactor = 1.0; // no smoothing
-        mysnake.initGame();
-      }
-      break;
-    case st_pingpong:
-      if(stateAutoChange){
-        mypong.initGame(2);
-      }
-      else{
-        filterFactor = 1.0; // no smoothing
-        mypong.initGame(1);
-      }
-      break;
-  }
-}
-
-/**
  * @brief execute a state change to given newState
  * 
  * @param newState the new state to be changed to
@@ -656,7 +518,6 @@ void stateChange(uint8_t newState){
   ledmatrix.gridFlush();
   // set new state
   currentState = newState;
-  entryAction(currentState);
   logger.logString("State change to: " + stateNames[currentState]);
   delay(5);
   logger.logString("FreeMemory=" + String(ESP.getFreeHeap()));
@@ -706,7 +567,7 @@ void handleLEDDirect() {
         uint8_t red = byteArray[i]; // red
         uint8_t green = byteArray[i + 1]; // green
         uint8_t blue = byteArray[i + 2]; // blue
-        ledmatrix.gridAddPixel((i/4) % WIDTH, (i/4) / HEIGHT, LEDMatrix::Color24bit(red, green, blue));
+        ledmatrix.gridAddPixel((i/4) % LEDMatrix::width, (i/4) / LEDMatrix::height, LEDMatrix::Color24bit(red, green, blue));
       }
       ledmatrix.drawOnMatrixInstant();
 
@@ -817,19 +678,7 @@ void handleCommand() {
     }
     else if(modestr == "diclock"){
       stateChange(st_diclock);
-    }
-    else if(modestr == "spiral"){
-      stateChange(st_spiral);
-    }
-    else if(modestr == "tetris"){
-      stateChange(st_tetris);
-    }
-    else if(modestr == "snake"){
-      stateChange(st_snake);
-    }
-    else if(modestr == "pingpong"){
-      stateChange(st_pingpong);
-    } 
+    }     
   }
   else if(server.argName(0) == "nightmode"){
     String modestr = server.arg(0);
@@ -863,8 +712,8 @@ void handleCommand() {
   else if (server.argName(0) == "resetwifi"){
     wifiManager.resetSettings();
     // run LED test.
-    for(int r = 0; r < HEIGHT; r++){
-      for(int c = 0; c < WIDTH; c++){
+    for(int r = 0; r < LEDMatrix::height; r++){
+      for(int c = 0; c < LEDMatrix::width; c++){
         matrix.fillScreen(0);
         matrix.drawPixel(c, r, LEDMatrix::color24to16bit(colors24bit[2]));
         matrix.show();
@@ -877,66 +726,7 @@ void handleCommand() {
     matrix.show();
     delay(200);
   }
-  else if(server.argName(0) == "stateautochange"){
-    String modestr = server.arg(0);
-    logger.logString("stateAutoChange change via Webserver to: " + modestr);
-    if(modestr == "1") stateAutoChange = true;
-    else stateAutoChange = false;
-  }
-  else if(server.argName(0) == "tetris"){
-    String cmdstr = server.arg(0);
-    logger.logString("Tetris cmd via Webserver to: " + cmdstr);
-    if(cmdstr == "up"){
-      mytetris.ctrlUp();
-    }
-    else if(cmdstr == "left"){
-      mytetris.ctrlLeft();
-    }
-    else if(cmdstr == "right"){
-      mytetris.ctrlRight();
-    }
-    else if(cmdstr == "down"){
-      mytetris.ctrlDown();
-    }
-    else if(cmdstr == "play"){
-      mytetris.ctrlStart();
-    }
-    else if(cmdstr == "pause"){
-      mytetris.ctrlPlayPause();
-    }
-  }
-  else if(server.argName(0) == "snake"){
-    String cmdstr = server.arg(0);
-    logger.logString("Snake cmd via Webserver to: " + cmdstr);
-    if(cmdstr == "up"){
-      mysnake.ctrlUp();
-    }
-    else if(cmdstr == "left"){
-      mysnake.ctrlLeft();
-    }
-    else if(cmdstr == "right"){
-      mysnake.ctrlRight();
-    }
-    else if(cmdstr == "down"){
-      mysnake.ctrlDown();
-    }
-    else if(cmdstr == "new"){
-      mysnake.initGame();
-    }
-  }
-  else if(server.argName(0) == "pong"){
-    String cmdstr = server.arg(0);
-    logger.logString("Pong cmd via Webserver to: " + cmdstr);
-    if(cmdstr == "up"){
-      mypong.ctrlUp(1);
-    }
-    else if(cmdstr == "down"){
-      mypong.ctrlDown(1);
-    }
-    else if(cmdstr == "new"){
-      mypong.initGame(1);
-    }
-  }
+  
   server.send(204, "text/plain", "No Content"); // this page doesn't send back content --> 204
 }
 
@@ -962,8 +752,6 @@ void handleDataRequest() {
       message += "\"mode\":\"" + stateNames[currentState] + "\"";
       message += ",";
       message += "\"modeid\":\"" + String(currentState) + "\"";
-      message += ",";
-      message += "\"stateAutoChange\":\"" + String(stateAutoChange) + "\"";
       message += ",";
       message += "\"nightMode\":\"" + String(nightMode) + "\"";
       message += ",";
@@ -1025,4 +813,78 @@ String leadingZero2Digit(int value){
   }
   msg += String(value);
   return msg;
+}
+
+
+/**
+ * @brief Show the time as digits on the wordclock
+ * 
+ * @param hours hours of time to display
+ * @param minutes minutes of time to display
+ * @param color  color to display (24bit)
+ */
+void showDigitalClock(uint8_t hours, uint8_t minutes, uint32_t color){
+  ledmatrix.gridFlush();
+  uint8_t fstDigitH = hours/10;
+  uint8_t sndDigitH = hours%10;
+  uint8_t fstDigitM = minutes/10;
+  uint8_t sndDigitM = minutes%10;
+  ledmatrix.printNumber(2, 0, fstDigitH, color);
+  ledmatrix.printNumber(6, 0, sndDigitH, color);
+  ledmatrix.printNumber(2, 6, fstDigitM, color);
+  ledmatrix.printNumber(6, 6, sndDigitM, color);
+}
+
+// setup Arduino OTA
+void setupOTA(String hostname){
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname(hostname.c_str());
+
+  // No authentication by default
+  ArduinoOTA.setPassword("admin");
+
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_FS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
+    //Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    //Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    //Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      //Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      //Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      //Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      //Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      //Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
+}
+
+void handleOTA(){
+  // handle OTA
+  ArduinoOTA.handle();
 }
