@@ -43,13 +43,13 @@
 #include "ntp_client_plus.h"
 #include "ledmatrix.h"
 #include "tools.h"
-#include "clock.h"
+#include "wordclock.h"
 
 // ----------------------------------------------------------------------------------
 //                                        CONSTANTS
 // ----------------------------------------------------------------------------------
 
-const String clockStringGerman =  "espistkfunfdreiviertelzwanzigzehnuminutenullvorqkjanachhalbNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
+
 
 #define EEPROM_SIZE 30      // size of EEPROM to save persistent variables
 #define ADR_NM_START_H 0
@@ -107,7 +107,7 @@ IPAddress Gateway_AccessPoint(192,168,10,0);
 IPAddress Subnetmask_AccessPoint(255,255,255,0);
 
 // hostname
-const String hostname = "wordclock";
+const String hostname = "wordclock2";
 
 // URL DNS server
 const char WebserverURL[] = "www.wordclock.local";
@@ -165,7 +165,7 @@ UDPLogger logger;
 WiFiUDP NTPUDP;
 NTPClientPlus ntp = NTPClientPlus(NTPUDP, "pool.ntp.org", 1, true);
 LEDMatrix ledmatrix = LEDMatrix(&matrix, brightness, &logger);
-Clock germanClock = Clock(clockStringGerman, ledmatrix, logger);
+WordClock germanClock = WordClock(ledmatrix, logger);
 
 float filterFactor = DEFAULT_SMOOTHING_FACTOR;// stores smoothing factor for led transition
 uint8_t currentState = st_clock;              // stores current state
