@@ -11,10 +11,10 @@ class WordClock
 public:
     WordClock(LEDMatrix& ledmatrix, UDPLogger& logger);
 
-    void show(uint8_t hours,uint8_t minutes, uint32_t color);  
+    void show(const uint8_t config[12], uint8_t hours,uint8_t minutes, uint32_t color);  
 
 private:
-    int showStringOnClock(uint8_t hours,uint8_t minutes, uint32_t color);
+    int showStringOnClock(const uint8_t config[12], uint8_t hours,uint8_t minutes, uint32_t color);
     void drawMinuteIndicator(uint8_t minutes, uint32_t color);
 
     LEDMatrix& ledmatrix;

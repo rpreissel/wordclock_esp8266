@@ -5,38 +5,7 @@
 namespace config
 {
 
-    void unpackModeConfig(const ModeConfig modeConfigs[], uint8_t index, UnpackedModeConfig &config)
-    {
-        ModeConfig modeConfig = modeConfigs[index];
-        Mode mode = static_cast<Mode>(modeConfig.mode && 0b1111);
-        switch (mode)
-        {
-        case Mode::WORDCLOCK:
-        {
-            auto &wordClockConfig = config.emplace<WordClockConfig>();
-            uint32_t bitConfig = modeConfig.config[0] && 0b11'11'11'11'11'11'11'11'11'11'11'11;
-            for (int c = 0; c < 12; c++)
-            {
-                wordClockConfig.config[c] = (bitConfig >> (2 * c)) & 0x03;
-            }
-        }
-        break;
-        case Mode::DIGICLOCK:
-            config.emplace<DigiClockConfig>();
-            break;
-        default:
-            config.emplace<OffConfig>();
-            break;
-        }
-
-        std::visit([&modeConfig, index](BaseConfig &config)
-                   {
-            config.index = index;
-            config.name = modeConfig.name;
-            config.brightness = modeConfig.color >> 24;
-            config.color = modeConfig.color & 0x0fff; },
-                   config);
-    }
+    /*
 
     void packModeConfig(ModeConfig modeConfigs[], UnpackedModeConfig &config)
     {
@@ -154,4 +123,5 @@ namespace config
             serializeModeConfigToJson(modes.add<JsonObject>(), config.modes[i]);
         }
     }
+    */
 }

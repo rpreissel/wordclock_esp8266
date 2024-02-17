@@ -16,9 +16,9 @@ WordClock::WordClock(LEDMatrix &ledmatrix, UDPLogger &logger)
   message.reserve(LEDMatrix::width * LEDMatrix::height);
 }
 
-void WordClock::show(uint8_t hours, uint8_t minutes, uint32_t color)
+void WordClock::show(const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color)
 {
-  showStringOnClock(hours, minutes, color);
+  showStringOnClock(config, hours, minutes, color);
   drawMinuteIndicator(minutes, color);
 }
 
@@ -63,9 +63,9 @@ void WordClock::drawMinuteIndicator(uint8_t minutes, uint32_t color)
  * @param color 24bit color value
  * @return int: 0 if successful, -1 if sentence not possible to display
  */
-int WordClock::showStringOnClock(uint8_t hours, uint8_t minutes, uint32_t color)
+int WordClock::showStringOnClock(const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color)
 {
-  timedef::timeToString(0b00'00'00'00'00'00'00'00'01'00'00'00, message, hours, minutes);
+  timedef::timeToString(config, message, hours, minutes);
   logger.logString("time as String: " + String(message));
 
   int messageStart = 0;

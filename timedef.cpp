@@ -156,7 +156,7 @@ namespace timedef
      * @param minutes minutes of the time value
      * @return String time as sentence
      */
-    void timeToString(u32 config, String &sentence, uint8_t hours, uint8_t minutes)
+    void timeToString(const uint8_t config[12], String &sentence, uint8_t hours, uint8_t minutes)
     {
         Serial.println(hours);
         Serial.println(minutes);
@@ -165,7 +165,7 @@ namespace timedef
         sentence.concat(F("es ist "));
 
         auto segment = minutes / 5;
-        u8 segmentConfig = (config >> (segment * 2)) & 0b00000011;
+        u8 segmentConfig = config[segment];
         auto t = times[segment][segmentConfig];
         if (!t)
         {

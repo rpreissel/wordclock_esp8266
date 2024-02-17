@@ -1,40 +1,40 @@
 /**
  * Wordclock 2.0 - Wordclock with ESP8266 and NTP time update
- * 
+ *
  * created by techniccontroller 04.12.2021
- * 
+ *
  * components:
  * - ESP8266
  * - Neopixelstrip
- * 
+ *
  * Board settings:
  * - Board: NodeMCU 1.0 (ESP-12E Module)
  * - Flash Size: 4MB (FS:2MB OTA:~1019KB)
  * - Upload Speed: 115200
- *  
- * 
+ *
+ *
  * with code parts from:
  * - Adafruit NeoPixel strandtest.ino, https://github.com/adafruit/Adafruit_NeoPixel/blob/master/examples/strandtest/strandtest.ino
  * - Esp8266 und Esp32 webserver https://fipsok.de/
  * - https://github.com/pmerlin/PMR-LED-Table/blob/master/tetrisGame.ino
- * - https://randomnerdtutorials.com/wifimanager-with-esp8266-autoconnect-custom-parameter-and-manage-your-ssid-and-password/ 
- * 
+ * - https://randomnerdtutorials.com/wifimanager-with-esp8266-autoconnect-custom-parameter-and-manage-your-ssid-and-password/
+ *
  */
 
-#include "secrets.h"                    // rename the file example_secrets.h to secrets.h after cloning the project. More information in README.md
+#include "secrets.h" // rename the file example_secrets.h to secrets.h after cloning the project. More information in README.md
 #include <LittleFS.h>
-#include <Adafruit_GFX.h>               // https://github.com/adafruit/Adafruit-GFX-Library
-#include <Adafruit_NeoMatrix.h>         // https://github.com/adafruit/Adafruit_NeoMatrix
-#include <Adafruit_NeoPixel.h>          // NeoPixel library used to run the NeoPixel LEDs: https://github.com/adafruit/Adafruit_NeoPixel
+#include <Adafruit_GFX.h>       // https://github.com/adafruit/Adafruit-GFX-Library
+#include <Adafruit_NeoMatrix.h> // https://github.com/adafruit/Adafruit_NeoMatrix
+#include <Adafruit_NeoPixel.h>  // NeoPixel library used to run the NeoPixel LEDs: https://github.com/adafruit/Adafruit_NeoPixel
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
-#include <uri/UriBraces.h>  
-#include "Base64.h"                    // copied from https://github.com/Xander-Electronics/Base64 
+#include <uri/UriBraces.h>
+#include "Base64.h" // copied from https://github.com/Xander-Electronics/Base64
 #include <DNSServer.h>
-#include <WiFiManager.h>                //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
-#include <EEPROM.h>                     //from ESP8266 Arduino Core (automatically installed when ESP8266 was installed via Boardmanager)
+#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <EEPROM.h>      //from ESP8266 Arduino Core (automatically installed when ESP8266 was installed via Boardmanager)
 
 #include <pins_arduino.h>
 
@@ -43,24 +43,19 @@
 #include "LittleFSServer.h"
 #include "ntp_client_plus.h"
 #include "ledmatrix.h"
-#include "config.h"
 #include "tools.h"
 #include "wordclock.h"
 #include "timedef.h"
+#include "state.h"
 
 // ----------------------------------------------------------------------------------
 //                                        CONSTANTS
 // ----------------------------------------------------------------------------------
 
+config::ModeConfig modeConfig;
 
-
-
-config::EEPROMConfig eepromConfig;
-config::UnpackedEEPROMConfig unpackedEepromConfig;
-config::UnpackedModeConfig& modeConfig = unpackedEepromConfig.modes[0];
-
-#define NEOPIXELPIN 12       // pin to which the NeoPixels are attached
-#define NUMPIXELS 125       // number of pixels attached to Attiny85
+#define NEOPIXELPIN 12 // pin to which the NeoPixels are attached
+#define NUMPIXELS 125  // number of pixels attached to Attiny85
 
 #define PERIOD_HEARTBEAT 1000
 #define TIMEOUT_LEDDIRECT 5000
@@ -77,7 +72,11 @@ config::UnpackedModeConfig& modeConfig = unpackedEepromConfig.modes[0];
 
 // own datatype for state machine states
 #define NUM_STATES 2
-enum ClockState {st_clock, st_diclock};
+enum ClockState
+{
+  st_clock,
+  st_diclock
+};
 const String stateNames[] = {"Clock", "DiClock"};
 
 // ports
@@ -90,9 +89,9 @@ const unsigned int DNSPort = 53;
 IPAddress logMulticastIP = IPAddress(230, 120, 10, 2);
 
 // ip addresses for Access Point
-IPAddress IPAdress_AccessPoint(192,168,10,2);
-IPAddress Gateway_AccessPoint(192,168,10,0);
-IPAddress Subnetmask_AccessPoint(255,255,255,0);
+IPAddress IPAdress_AccessPoint(192, 168, 10, 2);
+IPAddress Gateway_AccessPoint(192, 168, 10, 0);
+IPAddress Subnetmask_AccessPoint(255, 255, 255, 0);
 
 // hostname
 const String hostname = "wordclock2";
@@ -107,54 +106,53 @@ const char WebserverURL[] = "www.wordclock.local";
 // Webserver
 ESP8266WebServer server(HTTPPort);
 
-//DNS Server
+// DNS Server
 DNSServer DnsServer;
 
 // Wifi server. keep around to support resetting.
 WiFiManager wifiManager;
 
-//LittleFSServer
+// LittleFSServer
 LittleFSServer littleFSServer(server);
 
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
 // Note that for older NeoPixel strips you might need to change the third parameter--see the strandtest
 // example for more information on possible values.
-Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(LEDMatrix::width, LEDMatrix::height+1, NEOPIXELPIN,
-  NEO_MATRIX_TOP + NEO_MATRIX_LEFT +
-  NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
-  NEO_GRB            + NEO_KHZ800);
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(LEDMatrix::width, LEDMatrix::height + 1, NEOPIXELPIN,
+                                               NEO_MATRIX_TOP + NEO_MATRIX_LEFT +
+                                                   NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
+                                               NEO_GRB + NEO_KHZ800);
 
-
-// seven predefined colors24bit (green, red, yellow, purple, orange, lightgreen, blue) 
+// seven predefined colors24bit (green, red, yellow, purple, orange, lightgreen, blue)
 const uint32_t colors24bit[NUM_COLORS] = {
-  LEDMatrix::Color24bit(0, 255, 0),
-  LEDMatrix::Color24bit(255, 0, 0),
-  LEDMatrix::Color24bit(200, 200, 0),
-  LEDMatrix::Color24bit(255, 0, 200),
-  LEDMatrix::Color24bit(255, 128, 0), 
-  LEDMatrix::Color24bit(0, 128, 0), 
-  LEDMatrix::Color24bit(0, 0, 255) };
+    LEDMatrix::Color24bit(0, 255, 0),
+    LEDMatrix::Color24bit(255, 0, 0),
+    LEDMatrix::Color24bit(200, 200, 0),
+    LEDMatrix::Color24bit(255, 0, 200),
+    LEDMatrix::Color24bit(255, 128, 0),
+    LEDMatrix::Color24bit(0, 128, 0),
+    LEDMatrix::Color24bit(0, 0, 255)};
 
-uint8_t brightness = 40;            // current brightness of leds
+uint8_t brightness = 40; // current brightness of leds
 
 // timestamp variables
-long lastheartbeat = millis();      // time of last heartbeat sending
-long lastStep = millis();           // time of last animation step
-long lastLEDdirect = 0;             // time of last direct LED command (=> fall back to normal mode after timeout)
-long lastNTPUpdate = millis() - (PERIOD_NTPUPDATE-5000);  // time of last NTP update
-long lastAnimationStep = millis();  // time of last Matrix update
+long lastheartbeat = millis();                             // time of last heartbeat sending
+long lastStep = millis();                                  // time of last animation step
+long lastLEDdirect = 0;                                    // time of last direct LED command (=> fall back to normal mode after timeout)
+long lastNTPUpdate = millis() - (PERIOD_NTPUPDATE - 5000); // time of last NTP update
+long lastAnimationStep = millis();                         // time of last Matrix update
 
 // Create necessary global objects
+
 UDPLogger logger;
 WiFiUDP NTPUDP;
 NTPClientPlus ntp = NTPClientPlus(NTPUDP, "pool.ntp.org", 1, true);
 LEDMatrix ledmatrix = LEDMatrix(&matrix, brightness, &logger);
 WordClock germanClock = WordClock(ledmatrix, logger);
 
-float filterFactor = DEFAULT_SMOOTHING_FACTOR;// stores smoothing factor for led transition
-uint8_t currentState = st_clock;              // stores current state
-uint32_t maincolor_clock = colors24bit[2];    // color of the clock and digital clock
-bool apmode = false;                          // stores if WiFi AP mode is active
+float filterFactor = DEFAULT_SMOOTHING_FACTOR; // stores smoothing factor for led transition
+uint32_t maincolor_clock = colors24bit[2];     // color of the clock and digital clock
+bool apmode = false;                           // stores if WiFi AP mode is active
 
 // Watchdog counter to trigger restart if NTP update was not possible 30 times in a row (5min)
 int watchdogCounter = 30;
@@ -163,7 +161,8 @@ int watchdogCounter = 30;
 //                                        SETUP
 // ----------------------------------------------------------------------------------
 
-void setup() {
+void setup()
+{
   // put your setup code here, to run once:
   Serial.begin(115200);
   delay(100);
@@ -171,11 +170,8 @@ void setup() {
   Serial.printf("\nSketchname: %s\nBuild: %s\n", (__FILE__), (__TIMESTAMP__));
   Serial.println();
 
-  //Init EEPROM
-  EEPROM.begin(sizeof(config::EEPROMConfig));
-
-  // Load color for clock from EEPROM
-  loadEEPromConfig();
+  modeConfig = config::init(server, logger, [](const config::ModeConfig &config)
+                            { modeConfig = config; });
 
   // setup Matrix LED functions
   ledmatrix.setupMatrix();
@@ -185,52 +181,50 @@ void setup() {
   ledmatrix.setMinIndicator(15, colors24bit[6]);
   ledmatrix.drawOnMatrixInstant();
 
-
   /** Use WiFiMaanger for handling initial Wifi setup **/
 
-/*
-  // Local intialization. Once its business is done, there is no need to keep it around
+  /*
+    // Local intialization. Once its business is done, there is no need to keep it around
 
 
-  // Uncomment and run it once, if you want to erase all the stored information
-  //wifiManager.resetSettings();
+    // Uncomment and run it once, if you want to erase all the stored information
+    //wifiManager.resetSettings();
 
-  // set custom ip for portal
-  //wifiManager.setAPStaticIPConfig(IPAdress_AccessPoint, Gateway_AccessPoint, Subnetmask_AccessPoint);
+    // set custom ip for portal
+    //wifiManager.setAPStaticIPConfig(IPAdress_AccessPoint, Gateway_AccessPoint, Subnetmask_AccessPoint);
 
-  // fetches ssid and pass from eeprom and tries to connect
-  // if it does not connect it starts an access point with the specified name
-  // here "wordclockAP"
-  // and goes into a blocking loop awaiting configuration
-  wifiManager.autoConnect(AP_SSID);
+    // fetches ssid and pass from eeprom and tries to connect
+    // if it does not connect it starts an access point with the specified name
+    // here "wordclockAP"
+    // and goes into a blocking loop awaiting configuration
+    wifiManager.autoConnect(AP_SSID);
 
-  // if you get here you have connected to the WiFi
-  Serial.println("Connected.");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP()); 
+    // if you get here you have connected to the WiFi
+    Serial.println("Connected.");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
 
-  // Turn off minutes leds
-  ledmatrix.setMinIndicator(15, 0);
-  ledmatrix.drawOnMatrixInstant();
-*/
-   
-  
+    // Turn off minutes leds
+    ledmatrix.setMinIndicator(15, 0);
+    ledmatrix.drawOnMatrixInstant();
+  */
+
   /** (alternative) Use directly STA/AP Mode of ESP8266   **/
-  
-   
+
   // We start by connecting to a WiFi network
   Serial.print("Connecting to ");
   Serial.println(WIFI_SSID);
-  
+
   // We start by connecting to a WiFi network
   WiFi.mode(WIFI_STA);
-  //Set new hostname
+  // Set new hostname
   WiFi.hostname(hostname.c_str());
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  //wifi_station_set_hostname("esplamp");
+  // wifi_station_set_hostname("esplamp");
 
   int timeoutcounter = 0;
-  while (WiFi.status() != WL_CONNECTED && timeoutcounter < 30) {
+  while (WiFi.status() != WL_CONNECTED && timeoutcounter < 30)
+  {
     ledmatrix.setMinIndicator(15, colors24bit[6]);
     ledmatrix.drawOnMatrixInstant();
     delay(250);
@@ -242,16 +236,18 @@ void setup() {
   }
 
   // start request of program
-  if (WiFi.status() == WL_CONNECTED) {      //Check WiFi connection status
+  if (WiFi.status() == WL_CONNECTED)
+  { // Check WiFi connection status
     Serial.println("");
 
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
-    Serial.println(WiFi.localIP()); 
+    Serial.println(WiFi.localIP());
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
-  
-  } else {
+  }
+  else
+  {
     // no wifi found -> open access point
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(IPAdress_AccessPoint, Gateway_AccessPoint, Subnetmask_AccessPoint);
@@ -273,19 +269,18 @@ void setup() {
   // setup OTA
   setupOTA(hostname);
 
-  server.on("/cmd", handleCommand); // process commands
-  server.on("/data", handleDataRequest); // process datarequests
+  server.on("/cmd", handleCommand);                    // process commands
+  server.on("/data", handleDataRequest);               // process datarequests
   server.on("/leddirect", HTTP_POST, handleLEDDirect); // Call the 'handleLEDDirect' function when a POST request is made to URI "/leddirect"
-  server.on("/config",HTTP_GET, handleConfigRequest); 
-  server.on("/timedefs",HTTP_GET, handleTimeDefsRequest); 
+
   server.begin();
-  
+
   // create UDP Logger to send logging messages via UDP multicast
   logger = UDPLogger(WiFi.localIP(), logMulticastIP, logMulticastPort);
   logger.setName("Wordclock 2.0");
   logger.logString("Start program\n");
   delay(10);
-  logger.logString("Sketchname: "+ String(__FILE__));
+  logger.logString("Sketchname: " + String(__FILE__));
   delay(10);
   logger.logString("Build: " + String(__TIMESTAMP__));
   delay(10);
@@ -293,17 +288,20 @@ void setup() {
   delay(10);
   logger.logString("Reset Reason: " + ESP.getResetReason());
 
-  if(!ESP.getResetReason().equals("Software/System restart")){
+  if (!ESP.getResetReason().equals("Software/System restart"))
+  {
     // test quickly each LED
-    for(int r = 0; r < LEDMatrix::height; r++){
-        for(int c = 0; c < LEDMatrix::width; c++){
+    for (int r = 0; r < LEDMatrix::height; r++)
+    {
+      for (int c = 0; c < LEDMatrix::width; c++)
+      {
         matrix.fillScreen(0);
         matrix.drawPixel(c, r, LEDMatrix::color24to16bit(colors24bit[2]));
         matrix.show();
-        delay(10); 
-        }
+        delay(10);
+      }
     }
-    
+
     // clear Matrix
     matrix.fillScreen(0);
     matrix.show();
@@ -313,9 +311,9 @@ void setup() {
     uint8_t address = WiFi.localIP()[3];
     ledmatrix.printChar(1, 0, 'I', maincolor_clock);
     ledmatrix.printChar(5, 0, 'P', maincolor_clock);
-    ledmatrix.printNumber(0, 6, (address/100), maincolor_clock);
-    ledmatrix.printNumber(4, 6, (address/10)%10, maincolor_clock);
-    ledmatrix.printNumber(8, 6, address%10, maincolor_clock);
+    ledmatrix.printNumber(0, 6, (address / 100), maincolor_clock);
+    ledmatrix.printNumber(4, 6, (address / 10) % 10, maincolor_clock);
+    ledmatrix.printNumber(8, 6, address % 10, maincolor_clock);
     ledmatrix.drawOnMatrixInstant();
     delay(2000);
 
@@ -327,50 +325,55 @@ void setup() {
   // setup NTP
   ntp.setupNTPClient();
   logger.logString("NTP running");
-  logger.logString("Time: " +  ntp.getFormattedTime());
+  logger.logString("Time: " + ntp.getFormattedTime());
   logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
 
   // show the current time for short time in words
   int hours = ntp.getHours24();
   int minutes = ntp.getMinutes();
-  germanClock.show(hours, minutes, maincolor_clock);
+  uint8_t defaultConfig[12];
+  germanClock.show(defaultConfig, hours, minutes, maincolor_clock);
   ledmatrix.drawOnMatrixSmooth(filterFactor);
 
   // Read brightness setting from EEPROM, lower limit is 10 so that the LEDs are not completely off
   brightness = std::visit(Overload{
-            [&](config::BaseConfig& config)
-            { 
-              return config.brightness;
-            },
-            [&](auto& config)
-            { 
-              return 10;
-            },
-        }, modeConfig);
-  if(brightness < 10) brightness = 10;
+                              [&](config::BaseConfig &config)
+                              {
+                                return config.brightness;
+                              },
+                              [&](auto &config)
+                              {
+                                return 10;
+                              },
+                          },
+                          modeConfig);
+  if (brightness < 10)
+    brightness = 10;
   logger.logString("Brightness: " + String(brightness));
   ledmatrix.setBrightness(brightness);
 }
-
 
 // ----------------------------------------------------------------------------------
 //                                        LOOP
 // ----------------------------------------------------------------------------------
 
-void loop() {
+void loop()
+{
   // handle OTA
   handleOTA();
-  
+
   // handle Webserver
   server.handleClient();
 
   // send regularly heartbeat messages via UDP multicast
-  if(millis() - lastheartbeat > PERIOD_HEARTBEAT){
-    logger.logString("Heartbeat, state: " + stateNames[currentState] + ", FreeHeap: " + ESP.getFreeHeap() + ", HeapFrag: " + ESP.getHeapFragmentation() + ", MaxFreeBlock: " + ESP.getMaxFreeBlockSize() + "\n");
+  if (millis() - lastheartbeat > PERIOD_HEARTBEAT)
+  {
+    logger.logString("Heartbeat, state: " + config::modeName(modeConfig) + ", FreeHeap: " + ESP.getFreeHeap() + ", HeapFrag: " + ESP.getHeapFragmentation() + ", MaxFreeBlock: " + ESP.getMaxFreeBlockSize() + "\n");
     lastheartbeat = millis();
 
     // Check wifi status (only if no apmode)
-    if(!apmode && WiFi.status() != WL_CONNECTED){
+    if (!apmode && WiFi.status() != WL_CONNECTED)
+    {
       Serial.println("connection lost");
       ledmatrix.gridAddPixel(0, 5, colors24bit[1]);
       ledmatrix.drawOnMatrixInstant();
@@ -378,80 +381,86 @@ void loop() {
   }
 
   // handle mode behaviours (trigger loopCycles of different modes depending on current mode)
-  if((millis() - lastStep > PERIOD_TIMEVISUUPDATE) && (millis() - lastLEDdirect > TIMEOUT_LEDDIRECT)){
-    switch(currentState){
-      // state clock
-      case st_clock:
-        {
-          int hours = ntp.getHours24();
-          int minutes = ntp.getMinutes();
-          germanClock.show(hours, minutes, maincolor_clock);
-        }
-        break;
-      // state diclock
-      case st_diclock:
-        {
-          int hours = ntp.getHours24();
-          int minutes = ntp.getMinutes();
-          showDigitalClock(hours, minutes, maincolor_clock);
-        }
-        break;
-    }    
-    
+  if ((millis() - lastStep > PERIOD_TIMEVISUUPDATE) && (millis() - lastLEDdirect > TIMEOUT_LEDDIRECT))
+  {
+    std::visit(Overload{
+                   [](const config::WordClockConfig &config)
+                   {
+                     int hours = ntp.getHours24();
+                     int minutes = ntp.getMinutes();
+                     germanClock.show(config.config, hours, minutes, maincolor_clock);
+                   },
+                   [](const config::DigiClockConfig &config)
+                   {
+                     int hours = ntp.getHours24();
+                     int minutes = ntp.getMinutes();
+                     showDigitalClock(hours, minutes, maincolor_clock);
+                   },
+                   [](const auto &config)
+                   {
+                   },
+               },
+               modeConfig);
+
     lastStep = millis();
   }
 
   // periodically write colors to matrix
-  if(millis() - lastAnimationStep > PERIOD_MATRIXUPDATE){
+  if (millis() - lastAnimationStep > PERIOD_MATRIXUPDATE)
+  {
     ledmatrix.drawOnMatrixSmooth(filterFactor);
     lastAnimationStep = millis();
   }
 
-   // NTP time update
-  if(millis() - lastNTPUpdate > PERIOD_NTPUPDATE){
+  // NTP time update
+  if (millis() - lastNTPUpdate > PERIOD_NTPUPDATE)
+  {
     int res = ntp.updateNTP();
-    if(res == 0){
+    if (res == 0)
+    {
       ntp.calcDate();
       logger.logString("NTP-Update successful");
-      logger.logString("Time: " +  ntp.getFormattedTime());
-      logger.logString("Date: " +  ntp.getFormattedDate());
-      logger.logString("Day of Week (Mon=1, Sun=7): " +  String(ntp.getDayOfWeek()));
+      logger.logString("Time: " + ntp.getFormattedTime());
+      logger.logString("Date: " + ntp.getFormattedDate());
+      logger.logString("Day of Week (Mon=1, Sun=7): " + String(ntp.getDayOfWeek()));
       logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
       logger.logString("Summertime: " + String(ntp.updateSWChange()));
       lastNTPUpdate = millis();
       watchdogCounter = 30;
     }
-    else if(res == -1){
+    else if (res == -1)
+    {
       logger.logString("NTP-Update not successful. Reason: Timeout");
       lastNTPUpdate += 10000;
       watchdogCounter--;
     }
-    else if(res == 1){
+    else if (res == 1)
+    {
       logger.logString("NTP-Update not successful. Reason: Too large time difference");
-      logger.logString("Time: " +  ntp.getFormattedTime());
-      logger.logString("Date: " +  ntp.getFormattedDate());
-      logger.logString("Day of Week (Mon=1, Sun=7): " +  ntp.getDayOfWeek());
+      logger.logString("Time: " + ntp.getFormattedTime());
+      logger.logString("Date: " + ntp.getFormattedDate());
+      logger.logString("Day of Week (Mon=1, Sun=7): " + ntp.getDayOfWeek());
       logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
       logger.logString("Summertime: " + String(ntp.updateSWChange()));
       lastNTPUpdate += 10000;
       watchdogCounter--;
     }
-    else {
+    else
+    {
       logger.logString("NTP-Update not successful. Reason: NTP time not valid (<1970)");
       lastNTPUpdate += 10000;
       watchdogCounter--;
     }
 
     logger.logString("Watchdog Counter: " + String(watchdogCounter));
-    if(watchdogCounter <= 0){
-        logger.logString("Trigger restart due to watchdog...");
-        delay(100);
-        ESP.restart();
+    if (watchdogCounter <= 0)
+    {
+      logger.logString("Trigger restart due to watchdog...");
+      delay(100);
+      ESP.restart();
     }
-    
-  } 
+  }
 }
-
 
 // ----------------------------------------------------------------------------------
 //                                        OTHER FUNCTIONS
@@ -459,31 +468,36 @@ void loop() {
 
 /**
  * @brief execute a state change to given newState
- * 
+ *
  * @param newState the new state to be changed to
  */
-void stateChange(uint8_t newState){  
+void stateChange(uint8_t newState)
+{
   // first clear matrix
   ledmatrix.gridFlush();
   // set new state
-  currentState = newState;
-  logger.logString("State change to: " + stateNames[currentState]);
+  //currentState = newState;
+  //logger.logString("State change to: " + stateNames[currentState]);
   delay(5);
   logger.logString("FreeMemory=" + String(ESP.getFreeHeap()));
 }
 
 /**
  * @brief Handler for POST requests to /leddirect.
- * 
- * Allows the control of all LEDs from external source. 
+ *
+ * Allows the control of all LEDs from external source.
  * It will overwrite the normal program for 5 seconds.
  * A 11x11 picture can be sent as base64 encoded string to be displayed on matrix.
- * 
+ *
  */
-void handleLEDDirect() {
-  if (server.method() != HTTP_POST) {
+void handleLEDDirect()
+{
+  if (server.method() != HTTP_POST)
+  {
     server.send(405, "text/plain", "Method Not Allowed");
-  } else {
+  }
+  else
+  {
     String message = "POST data was:\n";
     /*logger.logString(message);
     delay(10);
@@ -492,11 +506,12 @@ void handleLEDDirect() {
       logger.logString(server.arg(i));
       delay(10);
     }*/
-    if(server.args() == 1){
+    if (server.args() == 1)
+    {
       String data = String(server.arg(0));
       int dataLength = data.length();
-      //char byteArray[dataLength];
-      //data.toCharArray(byteArray, dataLength);
+      // char byteArray[dataLength];
+      // data.toCharArray(byteArray, dataLength);
 
       // base64 decoding
       char base64data[dataLength];
@@ -511,12 +526,12 @@ void handleLEDDirect() {
         delay(10);
       }*/
 
-
-      for(int i = 0; i < dataLength; i += 4) {
-        uint8_t red = byteArray[i]; // red
+      for (int i = 0; i < dataLength; i += 4)
+      {
+        uint8_t red = byteArray[i];       // red
         uint8_t green = byteArray[i + 1]; // green
-        uint8_t blue = byteArray[i + 2]; // blue
-        ledmatrix.gridAddPixel((i/4) % LEDMatrix::width, (i/4) / LEDMatrix::height, LEDMatrix::Color24bit(red, green, blue));
+        uint8_t blue = byteArray[i + 2];  // blue
+        ledmatrix.gridAddPixel((i / 4) % LEDMatrix::width, (i / 4) / LEDMatrix::height, LEDMatrix::Color24bit(red, green, blue));
       }
       ledmatrix.drawOnMatrixInstant();
 
@@ -528,52 +543,54 @@ void handleLEDDirect() {
 
 /**
  * @brief Set main color
- * 
+ *
  */
 
-void setMainColor(uint8_t red, uint8_t green, uint8_t blue){
+void setMainColor(uint8_t red, uint8_t green, uint8_t blue)
+{
   maincolor_clock = LEDMatrix::Color24bit(red, green, blue);
-  //EEPROM.commit();
+  // EEPROM.commit();
 }
 
 /**
  * @brief Load maincolor from EEPROM
- * 
-*/
+ *
+ */
 
-void loadEEPromConfig(){
-  EEPROM.get(0,eepromConfig);
-  config::unpackConfig(eepromConfig, unpackedEepromConfig);
-  modeConfig = unpackedEepromConfig.modes[unpackedEepromConfig.startMode];
+void initColor()
+{
   maincolor_clock = std::visit(Overload{
-            [](config::BaseConfig& config)
-            { 
-              return config.color <50 ? colors24bit[2] : config.color;
-            },
-            [](auto& config)
-            { 
-              return colors24bit[2];
-            },
-        }, modeConfig);
+                                   [](config::BaseConfig &config)
+                                   {
+                                     return config.color < 50 ? colors24bit[2] : config.color;
+                                   },
+                                   [](auto &config)
+                                   {
+                                     return colors24bit[2];
+                                   },
+                               },
+                               modeConfig);
 }
 
 /**
  * @brief Handler for handling commands sent to "/cmd" url
- * 
+ *
  */
-void handleCommand() {
+void handleCommand()
+{
   // receive command and handle accordingly
-  for (uint8_t i = 0; i < server.args(); i++) {
+  for (uint8_t i = 0; i < server.args(); i++)
+  {
     Serial.print(server.argName(i));
     Serial.print(F(": "));
     Serial.println(server.arg(i));
   }
-  
+
   if (server.argName(0) == "led") // the parameter which was sent to this server is led color
   {
     String colorstr = server.arg(0) + "-";
     String redstr = split(colorstr, '-', 0);
-    String greenstr= split(colorstr, '-', 1);
+    String greenstr = split(colorstr, '-', 1);
     String bluestr = split(colorstr, '-', 2);
     logger.logString(colorstr);
     logger.logString("r: " + String(redstr.toInt()));
@@ -587,64 +604,72 @@ void handleCommand() {
     String modestr = server.arg(0);
     logger.logString("Mode change via Webserver to: " + modestr);
     // set current mode/state accordant sent mode
-    if(modestr == "clock"){
+    if (modestr == "clock")
+    {
       stateChange(st_clock);
     }
-    else if(modestr == "diclock"){
+    else if (modestr == "diclock")
+    {
       stateChange(st_diclock);
-    }     
+    }
   }
-  else if(server.argName(0) == "setting"){
+  else if (server.argName(0) == "setting")
+  {
     String timestr = server.arg(0) + "-";
     logger.logString("setting change via Webserver to: " + timestr);
     brightness = split(timestr, '-', 4).toInt();
-    if(brightness < 10) brightness = 10;
+    if (brightness < 10)
+      brightness = 10;
     logger.logString("Brightness: " + String(brightness));
     ledmatrix.setBrightness(brightness);
   }
-  else if (server.argName(0) == "resetwifi"){
+  else if (server.argName(0) == "resetwifi")
+  {
     wifiManager.resetSettings();
     // run LED test.
-    for(int r = 0; r < LEDMatrix::height; r++){
-      for(int c = 0; c < LEDMatrix::width; c++){
+    for (int r = 0; r < LEDMatrix::height; r++)
+    {
+      for (int c = 0; c < LEDMatrix::width; c++)
+      {
         matrix.fillScreen(0);
         matrix.drawPixel(c, r, LEDMatrix::color24to16bit(colors24bit[2]));
         matrix.show();
-        delay(10); 
-        }
+        delay(10);
+      }
     }
-    
+
     // clear Matrix
     matrix.fillScreen(0);
     matrix.show();
     delay(200);
   }
-  
+
   server.send(204, "text/plain", "No Content"); // this page doesn't send back content --> 204
 }
 
-
-
 /**
  * @brief Handler for GET requests
- * 
+ *
  */
-void handleDataRequest() {
+void handleDataRequest()
+{
   // receive data request and handle accordingly
-  for (uint8_t i = 0; i < server.args(); i++) {
+  for (uint8_t i = 0; i < server.args(); i++)
+  {
     Serial.print(server.argName(i));
     Serial.print(F(": "));
     Serial.println(server.arg(i));
   }
-  
+
   if (server.argName(0) == "key") // the parameter which was sent to this server is led color
   {
     String message = "{";
     String keystr = server.arg(0);
-    if(keystr == "mode"){
-      message += "\"mode\":\"" + stateNames[currentState] + "\"";
-      message += ",";
-      message += "\"modeid\":\"" + String(currentState) + "\"";
+    if (keystr == "mode")
+    {
+      //message += "\"mode\":\"" + stateNames[currentState] + "\"";
+      //message += ",";
+ //     message += "\"modeid\":\"" + String(currentState) + "\"";
       message += ",";
       message += "\"brightness\":\"" + String(brightness) + "\"";
     }
@@ -652,14 +677,14 @@ void handleDataRequest() {
     server.send(200, "application/json", message);
   }
 }
-
+/*
 void handleConfigRequest() {
   JsonDocument json;
-  config::serializeConfigToJson(json.to<JsonObject>(),unpackedEepromConfig);
+
   String message;
   serializeJsonPretty(json, message);
 
-  server.send(200, "application/json", message);  
+  server.send(200, "application/json", message);
 }
 
 void handleTimeDefsRequest() {
@@ -677,44 +702,46 @@ void handleTimeDefsRequest() {
       }
     }
   }
-  
+
 
   String message;
   serializeJsonPretty(json, message);
 
-  server.send(200, "application/json", message);  
+  server.send(200, "application/json", message);
 }
-
+*/
 
 /**
  * @brief Convert Integer to String with leading zero
- * 
- * @param value 
- * @return String 
+ *
+ * @param value
+ * @return String
  */
-String leadingZero2Digit(int value){
+String leadingZero2Digit(int value)
+{
   String msg = "";
-  if(value < 10){
+  if (value < 10)
+  {
     msg = "0";
   }
   msg += String(value);
   return msg;
 }
 
-
 /**
  * @brief Show the time as digits on the wordclock
- * 
+ *
  * @param hours hours of time to display
  * @param minutes minutes of time to display
  * @param color  color to display (24bit)
  */
-void showDigitalClock(uint8_t hours, uint8_t minutes, uint32_t color){
+void showDigitalClock(uint8_t hours, uint8_t minutes, uint32_t color)
+{
   ledmatrix.gridFlush();
-  uint8_t fstDigitH = hours/10;
-  uint8_t sndDigitH = hours%10;
-  uint8_t fstDigitM = minutes/10;
-  uint8_t sndDigitM = minutes%10;
+  uint8_t fstDigitH = hours / 10;
+  uint8_t sndDigitH = hours % 10;
+  uint8_t fstDigitM = minutes / 10;
+  uint8_t sndDigitM = minutes % 10;
   ledmatrix.printNumber(2, 0, fstDigitH, color);
   ledmatrix.printNumber(6, 0, sndDigitH, color);
   ledmatrix.printNumber(2, 6, fstDigitM, color);
@@ -722,7 +749,8 @@ void showDigitalClock(uint8_t hours, uint8_t minutes, uint32_t color){
 }
 
 // setup Arduino OTA
-void setupOTA(String hostname){
+void setupOTA(String hostname)
+{
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
@@ -736,24 +764,31 @@ void setupOTA(String hostname){
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
   // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
 
-  ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else { // U_FS
-      type = "filesystem";
-    }
+  ArduinoOTA.onStart([]()
+                     {
+                       String type;
+                       if (ArduinoOTA.getCommand() == U_FLASH)
+                       {
+                         type = "sketch";
+                       }
+                       else
+                       { // U_FS
+                         type = "filesystem";
+                       }
 
-    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-    //Serial.println("Start updating " + type);
-  });
-  ArduinoOTA.onEnd([]() {
-    //Serial.println("\nEnd");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
+                       // NOTE: if updating FS this would be the place to unmount FS using FS.end()
+                       // Serial.println("Start updating " + type);
+                     });
+  ArduinoOTA.onEnd([]()
+                   {
+                     // Serial.println("\nEnd");
+                   });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                        {
+                          // Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+                        });
+  ArduinoOTA.onError([](ota_error_t error)
+                     {
     //Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
       //Serial.println("Auth Failed");
@@ -765,12 +800,12 @@ void setupOTA(String hostname){
       //Serial.println("Receive Failed");
     } else if (error == OTA_END_ERROR) {
       //Serial.println("End Failed");
-    }
-  });
+    } });
   ArduinoOTA.begin();
 }
 
-void handleOTA(){
+void handleOTA()
+{
   // handle OTA
   ArduinoOTA.handle();
-} 
+}

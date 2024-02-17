@@ -14,7 +14,7 @@ namespace timedef
 
 
     TimeDefs getConfig();
-    void timeToString(u32 config, String &sentence, uint8_t hours, uint8_t minutes);
+    void timeToString(const uint8_t config[12], String &sentence, uint8_t hours, uint8_t minutes);
 }
 
 #endif
