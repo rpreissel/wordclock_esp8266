@@ -171,7 +171,10 @@ void setup()
   Serial.println();
 
   modeConfig = config::init(server, logger, [](const config::ModeConfig &config)
-                            { modeConfig = config; });
+                            { 
+                              modeConfig = config; 
+                              Serial.printf("3. switched to mode %s\n",config::modeName(config).c_str());
+                              });
 
   // setup Matrix LED functions
   ledmatrix.setupMatrix();
@@ -388,6 +391,11 @@ void loop()
                    {
                      int hours = ntp.getHours24();
                      int minutes = ntp.getMinutes();
+                     if(config.fixed) 
+                     {
+                        hours=config.hours % 24;
+                        minutes=config.minutes % 60;
+                     }
                      germanClock.show(config.config, hours, minutes, maincolor_clock);
                    },
                    [](const config::DigiClockConfig &config)

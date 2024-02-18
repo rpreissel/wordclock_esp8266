@@ -29,6 +29,9 @@ namespace config
     struct WordClockConfig : BaseConfig
     {
         uint8_t config[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+        bool fixed;
+        uint8_t hours;
+        uint8_t minutes;
     };
 
     struct DigiClockConfig : BaseConfig

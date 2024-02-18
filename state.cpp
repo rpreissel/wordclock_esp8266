@@ -190,9 +190,10 @@ namespace config
                         Overload{
                             [handler, &uri, updateHandler](Initialized &init)
                             {
-                                Serial.printf("handle %s (%d)\r", uri.c_str(), moduleState.index());
+                                Serial.printf("handle %s (%d)\n", uri.c_str(), moduleState.index());
                                 if (handler(init))
                                 {
+                                    Serial.printf("3. switched to mode %s\n", config::modeName(init.currentMode).c_str());
                                     updateHandler(init.currentMode);
                                 }
                             },
@@ -233,6 +234,9 @@ namespace config
                            {
                                configArray.add(config.config[c]);
                            }
+                            current[F("fixed")] = config.fixed;
+                            current[F("hours")] = config.hours;
+                            current[F("minutes")] = config.minutes;
                        },
                        [current, &baseConfigJson](const DigiClockConfig &config)
                        {
@@ -310,7 +314,6 @@ namespace config
                           config);
     }
 
-    
     String modeName(const ModeConfig &config)
     {
         return std::visit(Overload{
@@ -324,15 +327,15 @@ namespace config
                               },
                               [](const WordClockConfig &config)
                               {
-                                    char s[32];
-                                    snprintf(s, sizeof(s), "%s (%s)", config.name, TYPE_NAME_WORDCLOCK);
-                                    return String(s);
+                                  char s[32];
+                                  snprintf(s, sizeof(s), "%s (%s)", config.name, TYPE_NAME_WORDCLOCK);
+                                  return String(s);
                               },
                               [](const DigiClockConfig &config)
                               {
                                   char s[32];
-                                    snprintf(s, sizeof(s), "%s (%s)", config.name, TYPE_NAME_DIGICLOCK);
-                                    return String(s);
+                                  snprintf(s, sizeof(s), "%s (%s)", config.name, TYPE_NAME_DIGICLOCK);
+                                  return String(s);
                               },
                           },
                           config);
@@ -356,7 +359,7 @@ namespace config
             const char *typeCstr = doc[F("type")];
             if (typeCstr)
             {
-                auto copyFromOldConfig = [currentModeIndex,&init](BaseConfig &newConfig)
+                auto copyFromOldConfig = [currentModeIndex, &init](BaseConfig &newConfig)
                 {
                     std::visit(Overload{
                                    [&newConfig, &init](const Empty &config)
@@ -429,16 +432,32 @@ namespace config
                            },
                            [](const OffConfig &config) {
                            },
-                           [copyBaseConfigAttributes,doc](WordClockConfig &config)
+                           [copyBaseConfigAttributes, doc](WordClockConfig &config)
                            {
                                copyBaseConfigAttributes(config);
                                JsonVariantConst clockConfig = doc[F("config")];
-                               if(!clockConfig.isNull()) {
-                                    JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
-                                    for(int i = 0; i < 12; i++)
-                                    {
-                                        config.config[i] = ar[i];
-                                    }
+                               if (!clockConfig.isNull())
+                               {
+                                   JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
+                                   for (int i = 0; i < 12; i++)
+                                   {
+                                       config.config[i] = ar[i];
+                                   }
+                               }
+                               JsonVariantConst fixed = doc[F("fixed")];
+                               if (!fixed.isNull())
+                               {
+                                   config.fixed = fixed.as<bool>();
+                               }
+                               JsonVariantConst hours = doc[F("hours")];
+                               if (!hours.isNull())
+                               {
+                                   config.hours = hours.as<uint8_t>();
+                               }
+                               JsonVariantConst minutes = doc[F("minutes")];
+                               if (!minutes.isNull())
+                               {
+                                   config.minutes = minutes.as<uint8_t>();
                                }
                            },
                            [copyBaseConfigAttributes](DigiClockConfig &config)
@@ -455,7 +474,14 @@ namespace config
         String message;
         serializeJsonPretty(doc, message);
         server.send(200, "application/json", message);
-
+        if (notifyUpdateHandler)
+        {
+            Serial.printf("1. switched to mode %s\n", config::modeName(init.currentMode).c_str());
+        }
+        else
+        {
+            Serial.printf("1. stayed at mode %s\n", config::modeName(init.currentMode).c_str());
+        }
         return notifyUpdateHandler;
     }
 
