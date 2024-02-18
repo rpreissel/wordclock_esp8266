@@ -362,7 +362,7 @@ namespace config
                 auto copyFromOldConfig = [currentModeIndex, &init](BaseConfig &newConfig)
                 {
                     std::visit(Overload{
-                                   [&newConfig, &init](const Empty &config)
+                                   [&newConfig](const Empty &config)
                                    {
                                        newConfig.index = config.index;
                                        newConfig.brightness = 50;
