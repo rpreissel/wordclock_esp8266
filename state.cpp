@@ -4,7 +4,7 @@
 #include "state.h"
 #include "tools.h"
 #include "timedef.h"
-#include <ArduinoJson.h>
+#include "baseconfig.h"
 
 namespace eeprom
 {
@@ -63,10 +63,20 @@ namespace config
 
         eeprom::EEPROMConfig eepromConfig;
         ModeConfig modes[eeprom::MODE_COUNT];
-        ModeConfig currentMode;
+        int current_mode_index;
 
         Initialized(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler)
             : server(server), logger(logger), updateHandler(updateHandler) {}
+
+        ModeConfig &currentMode()
+        {
+            static ModeConfig offConfig = OffConfig();
+            if (current_mode_index >= 0 && current_mode_index < eeprom::MODE_COUNT)
+            {
+                return modes[current_mode_index];
+            }
+            return offConfig;
+        }
     };
 
     std::variant<std::monostate, Initialized, Error> moduleState;
@@ -89,12 +99,12 @@ namespace config
 
                     auto &init = moduleState.emplace<Initialized>(server, logger, updateHandler);
                     loadFromEEProm(init);
-                    Serial.println("init currentMode " + init.currentMode.index());
-                    return init.currentMode;
+                    Serial.println("init currentMode " + init.currentMode().index());
+                    return init.currentMode();
                 },
                 [](Initialized &init)
                 {
-                    return init.currentMode;
+                    return init.currentMode();
                 },
                 [](auto &init)
                 {
@@ -108,25 +118,13 @@ namespace config
         EEPROM.get(0, init.eepromConfig);
         if (init.eepromConfig.initMarker != eeprom::INIT_MARKER)
         {
-            auto baseConfig = [](BaseConfig &config, int index)
-            {
-                config.index = index;
-                config.brightness = 50;
-            };
-
-            auto &first = init.modes[0].emplace<WordClockConfig>();
-            first.name = "WordClock";
-            baseConfig(first, 0);
-            auto &second = init.modes[1].emplace<DigiClockConfig>();
-            second.name = "DigiClock";
-            baseConfig(second, 1);
-
+            create(WordClockHandler::NAME, init.modes[0], 0);
+            create(DigiClockHandler::NAME, init.modes[1], 1);
             for (int i = 2; i < eeprom::MODE_COUNT; i++)
             {
                 init.modes[i].emplace<Empty>().index = i;
             }
-
-            init.currentMode = init.modes[0];
+            init.current_mode_index = 0;
         }
         else
         {
@@ -135,10 +133,10 @@ namespace config
                 unpackModeConfig(init.eepromConfig.modes, i, init.modes[i]);
             }
 
-            init.currentMode = init.modes[init.eepromConfig.startMode];
-            if (std::holds_alternative<Empty>(init.currentMode))
+            init.current_mode_index = init.eepromConfig.startMode;
+            if (std::holds_alternative<Empty>(init.currentMode()))
             {
-                init.currentMode = init.modes[0];
+                init.current_mode_index = 0;
             }
         }
     }
@@ -193,8 +191,8 @@ namespace config
                                 Serial.printf("handle %s (%d)\n", uri.c_str(), moduleState.index());
                                 if (handler(init))
                                 {
-                                    Serial.printf("3. switched to mode %s\n", config::modeName(init.currentMode).c_str());
-                                    updateHandler(init.currentMode);
+                                    Serial.printf("3. switched to mode %s\n", config::modeName(init.currentMode()).c_str());
+                                    updateHandler(init.currentMode());
                                 }
                             },
                             [&server, &uri](auto &init)
@@ -205,47 +203,144 @@ namespace config
                         moduleState); });
     }
 
-    void modeToJson(JsonObject current, ModeConfig mode)
+    void EmptyTypeHandler::toJson(const Empty &config, JsonObject current)
     {
-        auto baseConfigJson = [](JsonObject doc, const BaseConfig &config)
-        {
-            doc[F("index")] = config.index;
-            doc[F("name")] = config.name;
-            doc[F("color")] = config.color;
-            doc[F("brightness")] = config.brightness;
-        };
-        std::visit(Overload{
-                       [current](const Empty &config)
-                       {
-                           current[F("index")] = config.index;
-                           current[F("type")] = TYPE_NAME_EMPTY;
-                       },
-                       [current](const OffConfig &config)
-                       {
-                           current[F("index")] = config.index;
-                           current[F("type")] = TYPE_NAME_OFF;
-                       },
-                       [current, &baseConfigJson](const WordClockConfig &config)
-                       {
-                           current[F("type")] = TYPE_NAME_WORDCLOCK;
-                           baseConfigJson(current, config);
-                           auto configArray = current[F("config")].to<JsonArray>();
-                           for (int c = 0; c < 12; c++)
-                           {
-                               configArray.add(config.config[c]);
-                           }
-                            current[F("fixed")] = config.fixed;
-                            current[F("hours")] = config.hours;
-                            current[F("minutes")] = config.minutes;
-                       },
-                       [current, &baseConfigJson](const DigiClockConfig &config)
-                       {
-                           current[F("type")] = TYPE_NAME_DIGICLOCK;
-                           baseConfigJson(current, config);
-                       },
+        current[F("type")] = NAME;
+        current[F("index")] = config.index;
+    }
 
-                   },
-                   mode);
+    void EmptyTypeHandler::fromJson(Empty &config, JsonObjectConst current)
+    {
+        config.index = current[F("index")];
+    }
+
+    void EmptyTypeHandler::init(Empty &config, int index, const BaseConfig *old)
+    {
+        config.index = index;
+    }
+
+    void OffTypeHandler::toJson(const OffConfig &config, JsonObject current)
+    {
+        current[F("type")] = NAME;
+        current[F("index")] = OffConfig::MODE_OFF_INDEX;
+    }
+
+    void OffTypeHandler::fromJson(OffConfig &config, JsonObjectConst current)
+    {
+    }
+
+    void OffTypeHandler::init(OffConfig &config, int index, const BaseConfig *old)
+    {
+    }
+
+    void baseConfigInit(BaseConfig &config, int index, const BaseConfig *old, const char *defaultName)
+    {
+        config.index = index;
+        if (old)
+        {
+            config.name = old->name;
+            config.color = old->color;
+            config.brightness = old->brightness;
+        }
+        else
+        {
+            config.name = defaultName;
+            config.color = 0xfff;
+            config.brightness = 50;
+        }
+    }
+
+    void baseConfigToJson(const BaseConfig &config, JsonObject current)
+    {
+        current[F("index")] = config.index;
+        current[F("name")] = config.name;
+        current[F("color")] = config.color;
+        current[F("brightness")] = config.brightness;
+    }
+
+    void baseConfigFromJson(BaseConfig &config, JsonObjectConst doc)
+    {
+        JsonVariantConst brightness = doc[F("brightness")];
+        if (!brightness.isNull())
+        {
+            config.brightness = brightness.as<int>();
+        }
+        JsonVariantConst color = doc[F("color")];
+        if (!color.isNull())
+        {
+            config.color = color.as<int>();
+        }
+        const char *name = doc[F("name")];
+        if (name)
+        {
+            config.name = name;
+        }
+    }
+
+    void WordClockHandler::toJson(const WordClockConfig &config, JsonObject current)
+    {
+        current[F("type")] = NAME;
+        baseConfigToJson(config, current);
+
+        auto configArray = current[F("config")].to<JsonArray>();
+        for (int c = 0; c < 12; c++)
+        {
+            configArray.add(config.config[c]);
+        }
+        current[F("fixed")] = config.fixed;
+        current[F("hours")] = config.hours;
+        current[F("minutes")] = config.minutes;
+    }
+
+    void WordClockHandler::fromJson(WordClockConfig &config, JsonObjectConst doc)
+    {
+        baseConfigFromJson(config, doc);
+
+        JsonVariantConst clockConfig = doc[F("config")];
+        if (!clockConfig.isNull())
+        {
+            JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
+            for (int i = 0; i < 12; i++)
+            {
+                config.config[i] = ar[i];
+            }
+        }
+        JsonVariantConst fixed = doc[F("fixed")];
+        if (!fixed.isNull())
+        {
+            config.fixed = fixed.as<bool>();
+        }
+        JsonVariantConst hours = doc[F("hours")];
+        if (!hours.isNull())
+        {
+            config.hours = hours.as<uint8_t>();
+        }
+        JsonVariantConst minutes = doc[F("minutes")];
+        if (!minutes.isNull())
+        {
+            config.minutes = minutes.as<uint8_t>();
+        }
+    }
+
+    void WordClockHandler::init(WordClockConfig &config, int index, const BaseConfig *old)
+    {
+        baseConfigInit(config, index, old, NAME);
+    }
+
+    void DigiClockHandler::toJson(const DigiClockConfig &config, JsonObject current)
+    {
+        current[F("type")] = NAME;
+        baseConfigToJson(config, current);
+    }
+
+    void DigiClockHandler::fromJson(DigiClockConfig &config, JsonObjectConst current)
+    {
+        baseConfigFromJson(config, current);
+    }
+
+    void DigiClockHandler::init(DigiClockConfig &config, int index, const BaseConfig *old)
+    {
+        baseConfigInit(config, index, old, NAME);
     }
 
     bool onGetCurrent(ESP8266WebServer &server, UDPLogger &logger, Initialized &init)
@@ -253,35 +348,18 @@ namespace config
 
         JsonDocument json;
         JsonObject current = json["current"].to<JsonObject>();
-        modeToJson(current, init.currentMode);
+        toJson(init.currentMode(), current);
 
         auto modes = json["modes"].to<JsonArray>();
         for (int i = 0; i < eeprom::MODE_COUNT; i++)
         {
             auto mode = modes.add<JsonObject>();
             mode[F("index")] = i;
-            std::visit(Overload{
-                           [mode](const Empty &config)
-                           {
-                               mode[F("type")] = TYPE_NAME_EMPTY;
-                           },
-                           [mode](const OffConfig &config)
-                           {
-                               mode[F("type")] = TYPE_NAME_OFF;
-                               mode[F("index")] = MODE_OFF_INDEX;
-                           },
-                           [mode](const WordClockConfig &config)
-                           {
-                               mode[F("type")] = TYPE_NAME_WORDCLOCK;
-                               mode[F("name")] = config.name;
-                           },
-                           [mode](const DigiClockConfig &config)
-                           {
-                               mode[F("type")] = TYPE_NAME_DIGICLOCK;
-                               mode[F("name")] = config.name;
-                           },
-                       },
-                       init.modes[i]);
+            mode[F("type")] = modeName(init.modes[i]);
+            if(auto baseConfig = toBaseConfig(init.modes[i]))
+            {
+                 mode[F("name")] = baseConfig ->name;
+            }
         }
 
         String message;
@@ -291,55 +369,6 @@ namespace config
         return false;
     }
 
-    int modeIndex(const ModeConfig &config)
-    {
-        return std::visit(Overload{
-                              [](const Empty &config)
-                              {
-                                  return config.index;
-                              },
-                              [](const OffConfig &config)
-                              {
-                                  return config.index;
-                              },
-                              [](const WordClockConfig &config)
-                              {
-                                  return config.index;
-                              },
-                              [](const DigiClockConfig &config)
-                              {
-                                  return config.index;
-                              },
-                          },
-                          config);
-    }
-
-    String modeName(const ModeConfig &config)
-    {
-        return std::visit(Overload{
-                              [](const Empty &config)
-                              {
-                                  return String(TYPE_NAME_EMPTY);
-                              },
-                              [](const OffConfig &config)
-                              {
-                                  return String(TYPE_NAME_OFF);
-                              },
-                              [](const WordClockConfig &config)
-                              {
-                                  char s[32];
-                                  snprintf(s, sizeof(s), "%s (%s)", config.name, TYPE_NAME_WORDCLOCK);
-                                  return String(s);
-                              },
-                              [](const DigiClockConfig &config)
-                              {
-                                  char s[32];
-                                  snprintf(s, sizeof(s), "%s (%s)", config.name, TYPE_NAME_DIGICLOCK);
-                                  return String(s);
-                              },
-                          },
-                          config);
-    }
     bool onChangeCurrent(ESP8266WebServer &server, UDPLogger &logger, Initialized &init)
     {
         auto text = server.arg("plain");
@@ -353,134 +382,31 @@ namespace config
         }
 
         bool notifyUpdateHandler = false;
-        int currentModeIndex = modeIndex(init.currentMode);
+        int currentModeIndex = init.current_mode_index;
         if (currentModeIndex >= 0)
         {
             const char *typeCstr = doc[F("type")];
             if (typeCstr)
             {
-                auto copyFromOldConfig = [currentModeIndex, &init](BaseConfig &newConfig)
-                {
-                    std::visit(Overload{
-                                   [&newConfig](const Empty &config)
-                                   {
-                                       newConfig.index = config.index;
-                                       newConfig.brightness = 50;
-                                       newConfig.color = 0xFFF;
-                                   },
-                                   [&newConfig](const OffConfig &config)
-                                   {
-                                       newConfig.index = config.index;
-                                       newConfig.brightness = 50;
-                                       newConfig.color = 0xFFF;
-                                   },
-                                   [&newConfig](WordClockConfig &config)
-                                   {
-                                       newConfig.index = config.index;
-                                       newConfig.brightness = config.brightness;
-                                       newConfig.color = config.color;
-                                       newConfig.name = config.name;
-                                   },
-                                   [&newConfig](DigiClockConfig &config)
-                                   {
-                                       newConfig.index = config.index;
-                                       newConfig.brightness = config.brightness;
-                                       newConfig.color = config.color;
-                                       newConfig.name = config.name;
-                                   },
-                               },
-                               init.modes[currentModeIndex]);
-                };
-                String type(typeCstr);
-                if (type == TYPE_NAME_EMPTY)
-                {
-                    init.currentMode.emplace<Empty>().index = currentModeIndex;
-                }
-                else if (type == TYPE_NAME_WORDCLOCK)
-                {
-                    auto &newConfig = init.currentMode.emplace<WordClockConfig>();
-                    newConfig.name = F("WordClock");
-                    copyFromOldConfig(newConfig);
-                }
-                else if (type == TYPE_NAME_DIGICLOCK)
-                {
-                    auto &newConfig = init.currentMode.emplace<DigiClockConfig>();
-                    newConfig.name = F("DigiClock");
-                    copyFromOldConfig(newConfig);
-                }
+                create(typeCstr, init.currentMode(), currentModeIndex);                                
             }
-            auto copyBaseConfigAttributes = [doc](BaseConfig &config)
-            {
-                JsonVariantConst brightness = doc[F("brightness")];
-                if (!brightness.isNull())
-                {
-                    config.brightness = brightness.as<int>();
-                }
-                JsonVariantConst color = doc[F("color")];
-                if (!color.isNull())
-                {
-                    config.color = color.as<int>();
-                }
-                const char *name = doc[F("name")];
-                if (name)
-                {
-                    config.name = name;
-                }
-            };
-            std::visit(Overload{
-                           [](const Empty &config) {
-                           },
-                           [](const OffConfig &config) {
-                           },
-                           [copyBaseConfigAttributes, doc](WordClockConfig &config)
-                           {
-                               copyBaseConfigAttributes(config);
-                               JsonVariantConst clockConfig = doc[F("config")];
-                               if (!clockConfig.isNull())
-                               {
-                                   JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
-                                   for (int i = 0; i < 12; i++)
-                                   {
-                                       config.config[i] = ar[i];
-                                   }
-                               }
-                               JsonVariantConst fixed = doc[F("fixed")];
-                               if (!fixed.isNull())
-                               {
-                                   config.fixed = fixed.as<bool>();
-                               }
-                               JsonVariantConst hours = doc[F("hours")];
-                               if (!hours.isNull())
-                               {
-                                   config.hours = hours.as<uint8_t>();
-                               }
-                               JsonVariantConst minutes = doc[F("minutes")];
-                               if (!minutes.isNull())
-                               {
-                                   config.minutes = minutes.as<uint8_t>();
-                               }
-                           },
-                           [copyBaseConfigAttributes](DigiClockConfig &config)
-                           {
-                               copyBaseConfigAttributes(config);
-                           },
-                       },
-                       init.currentMode);
-            init.modes[currentModeIndex] = init.currentMode;
+
+            fromJson(init.currentMode(), doc.to<JsonObject>());
+
             notifyUpdateHandler = true;
         }
         doc.clear();
-        modeToJson(doc.to<JsonObject>(), init.currentMode);
+        toJson(init.currentMode(), doc.to<JsonObject>());
         String message;
         serializeJsonPretty(doc, message);
         server.send(200, "application/json", message);
         if (notifyUpdateHandler)
         {
-            Serial.printf("1. switched to mode %s\n", config::modeName(init.currentMode).c_str());
+            Serial.printf("1. switched to mode %s\n", config::modeName(init.currentMode()).c_str());
         }
         else
         {
-            Serial.printf("1. stayed at mode %s\n", config::modeName(init.currentMode).c_str());
+            Serial.printf("1. stayed at mode %s\n", config::modeName(init.currentMode()).c_str());
         }
         return notifyUpdateHandler;
     }
@@ -499,19 +425,19 @@ namespace config
 
         int mode = doc["mode"];
         bool notifyUpdateHandler = false;
-        if (mode >= 0 && mode <= eeprom::MODE_COUNT)
+        if (mode >= 0 && mode < eeprom::MODE_COUNT)
         {
-            init.currentMode = init.modes[mode];
+            init.current_mode_index = mode;
             notifyUpdateHandler = true;
         }
-        else if (mode == MODE_OFF_INDEX)
+        else if (mode == OffConfig::MODE_OFF_INDEX)
         {
-            init.currentMode.emplace<OffConfig>();
+            init.current_mode_index = mode;
             notifyUpdateHandler = true;
         }
 
         doc.clear();
-        modeToJson(doc.to<JsonObject>(), init.currentMode);
+        toJson(init.currentMode(), doc.to<JsonObject>());
         String message;
         serializeJsonPretty(doc, message);
         server.send(200, "application/json", message);
