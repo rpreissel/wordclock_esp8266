@@ -66,7 +66,7 @@ void WordClock::drawMinuteIndicator(uint8_t minutes, uint32_t color)
 int WordClock::showStringOnClock(const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color)
 {
   timedef::timeToString(config, message, hours, minutes);
-  logger.logString("time as String: " + String(message));
+  //logger.logString("time as String: " + String(message));
 
   int messageStart = 0;
   String word = "";

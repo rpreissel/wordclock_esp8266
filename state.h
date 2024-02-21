@@ -28,14 +28,13 @@ namespace config
     template <typename TModeType>
     struct ModeTypeHandler
     {
-        virtual void init(TModeType &modeConfig, int index, const BaseConfig *old) = 0;
+        virtual void init(TModeType &modeConfig, const BaseConfig *old) = 0;
         virtual void toJson(const TModeType &modeConfig, JsonObject doc) = 0;
         virtual void fromJson(TModeType &modeConfig, JsonObjectConst doc) = 0;
     };
 
     struct BaseConfig
     {
-        uint8_t index;
         uint8_t brightness;
         uint32_t color;
         String name;
@@ -45,8 +44,8 @@ namespace config
 
     struct EmptyTypeHandler : ModeTypeHandler<Empty>
     {
-        constexpr static const char *NAME = "EMPTY";
-        virtual void init(Empty &modeConfig, int index, const BaseConfig *old) override;
+        constexpr static const char *TYPE = "EMPTY";
+        virtual void init(Empty &modeConfig, const BaseConfig *old) override;
         virtual void toJson(const Empty &modeConfig, JsonObject doc) override;
         virtual void fromJson(Empty &modeConfig, JsonObjectConst doc) override;
     };
@@ -54,15 +53,14 @@ namespace config
     struct Empty
     {
         using handler_type = EmptyTypeHandler;
-        uint8_t index;
     };
 
     struct OffConfig;
 
     struct OffTypeHandler : ModeTypeHandler<OffConfig>
     {
-        constexpr static const char *const NAME = "OFF";
-        virtual void init(OffConfig &modeConfig, int index, const BaseConfig *old) override;
+        constexpr static const char *const TYPE = "OFF";
+        virtual void init(OffConfig &modeConfig, const BaseConfig *old) override;
         virtual void toJson(const OffConfig &modeConfig, JsonObject doc) override;
         virtual void fromJson(OffConfig &modeConfig, JsonObjectConst doc) override;
     };
@@ -77,8 +75,8 @@ namespace config
 
     struct WordClockHandler : ModeTypeHandler<WordClockConfig>
     {
-        constexpr static const char *const NAME = "WORDCLOCK";
-        virtual void init(WordClockConfig &modeConfig, int index, const BaseConfig *old) override;
+        constexpr static const char *const TYPE = "WORDCLOCK";
+        virtual void init(WordClockConfig &modeConfig, const BaseConfig *old) override;
         virtual void toJson(const WordClockConfig &modeConfig, JsonObject doc) override;
         virtual void fromJson(WordClockConfig &modeConfig, JsonObjectConst doc) override;
     };
@@ -95,8 +93,8 @@ namespace config
 
     struct DigiClockHandler : ModeTypeHandler<DigiClockConfig>
     {
-        constexpr static const char *const NAME = "DIGICLOCK";
-        virtual void init(DigiClockConfig &modeConfig, int index, const BaseConfig *old) override;
+        constexpr static const char *const TYPE = "DIGICLOCK";
+        virtual void init(DigiClockConfig &modeConfig, const BaseConfig *old) override;
         virtual void toJson(const DigiClockConfig &modeConfig, JsonObject doc) override;
         virtual void fromJson(DigiClockConfig &modeConfig, JsonObjectConst doc) override;
     };
@@ -107,15 +105,16 @@ namespace config
     };
 
     template <typename... Args>
-    void toJson(std::variant<Args...> &para, JsonObject doc)
+    void toJson(std::variant<Args...> &para, int index, JsonObject doc)
     {
+        doc[F("index")] = index;
         return std::visit(Overload{[doc](Args &mt)
                                    { _handler_instance<Args>::handler.toJson(mt, doc); }...},
                           para);
     }
 
     template <typename... Args>
-    void fromJson(std::variant<Args...> &para, JsonObject doc)
+    void fromJson(std::variant<Args...> &para, JsonObjectConst doc)
     {
         return std::visit(Overload{[doc](Args &mt)
                                    { _handler_instance<Args>::handler.fromJson(mt, doc); }...},
@@ -123,45 +122,81 @@ namespace config
     }
 
     template <typename... Args>
-    String modeName(const std::variant<Args...> &para)
+    String modeType(const std::variant<Args...> &para)
     {
         return std::visit(Overload{[](const Args &mt)
-                                   { return String(Args::handler_type::NAME); }...},
+                                   { return String(Args::handler_type::TYPE); }...},
+                          para);
+    }
+
+
+    template <typename... Args>
+    const BaseConfig *toBaseConfig(const std::variant<Args...> &para)
+    {
+        return std::visit(Overload{[](const Args &mt) -> const BaseConfig *
+                                   {
+                                       if constexpr (std::is_base_of<BaseConfig, Args>())
+                                       {
+                                           return &mt;
+                                       }
+                                       return nullptr;
+                                   }...},
                           para);
     }
 
     template <typename... Args>
-    const BaseConfig* toBaseConfig(const std::variant<Args...> &para)
+    String modeName(const std::variant<Args...> &para)
     {
-        return std::visit(Overload{[](const Args &mt) -> const BaseConfig*
-                                   {
-                                    if constexpr (std::is_base_of<BaseConfig, Args>()) {
-                                        return &mt; 
-                                    }
-                                    return nullptr;
-                                    }...},
-                          para);
+        String type = modeType(para);
+        const BaseConfig* baseConfig = toBaseConfig(para);
+        if(baseConfig) {
+            return baseConfig->name + F(" (") + type + F(")");
+        }
+        return type;
     }
 
-    typedef std::variant<Empty, OffConfig, WordClockConfig, DigiClockConfig> ModeConfig;
+    using EEPROMModeConfig = std::variant<Empty, WordClockConfig, DigiClockConfig>;
+    using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
+
+    template <std::size_t I>
+    void reInit(ModeConfig &current)
+    {
+        const BaseConfig *old = toBaseConfig(current);
+        auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
+        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, old);
+        current = newMode;
+    }
 
     template <std::size_t I = 0>
-    void create(String typeName, ModeConfig &current, int index)
+    void reInit(String typeName, ModeConfig &current)
     {
-        if constexpr (I < std::variant_size_v<ModeConfig>)
+        if constexpr (I < std::variant_size_v<EEPROMModeConfig>)
         {
-            if (typeName.compareTo(std::variant_alternative_t<I, ModeConfig>::handler_type::NAME) == 0)
+            if (typeName.compareTo(std::variant_alternative_t<I, EEPROMModeConfig>::handler_type::TYPE) == 0)
             {
-                const BaseConfig* old = toBaseConfig(current);
-                auto newMode = std::variant_alternative_t<I, ModeConfig>();                 
-                _handler_instance<std::variant_alternative_t<I, ModeConfig>>::handler.init(newMode, index, old);
-                current = newMode;
+                reInit<I>(current);
                 return;
             }
-            create<I + 1>(typeName, current, index);
+            reInit<I + 1>(typeName, current);
             return;
         }
-        create<0>(EmptyTypeHandler::NAME,current, index);
+        reInit<0>(current);
+    }
+
+    template <std::size_t I = 0>
+    void reInit(uint8_t typeIndex, ModeConfig &current)
+    {
+        if constexpr (I < std::variant_size_v<EEPROMModeConfig>)
+        {
+            if (typeIndex == I)
+            {
+                reInit<I>(current);
+                return;
+            }
+            reInit<I + 1>(typeIndex, current);
+            return;
+        }
+        reInit<0>(current);
     }
 
     typedef std::function<void(const ModeConfig &)> UpdateHandler;
