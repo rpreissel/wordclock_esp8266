@@ -58,9 +58,7 @@ config::ModeConfig modeConfig;
 #define NUMPIXELS 125  // number of pixels attached to Attiny85
 
 #define PERIOD_HEARTBEAT 1000
-#define TIMEOUT_LEDDIRECT 5000
 #define PERIOD_NTPUPDATE 30000
-#define PERIOD_TIMEVISUUPDATE 1000
 #define PERIOD_MATRIXUPDATE 100
 
 #define CURRENT_LIMIT_LED 2500 // limit the total current sonsumed by LEDs (mA)
@@ -71,13 +69,6 @@ config::ModeConfig modeConfig;
 #define NUM_COLORS 7
 
 // own datatype for state machine states
-#define NUM_STATES 2
-enum ClockState
-{
-  st_clock,
-  st_diclock
-};
-const String stateNames[] = {"Clock", "DiClock"};
 
 // ports
 const unsigned int localPort = 2390;
@@ -133,12 +124,8 @@ const uint32_t colors24bit[NUM_COLORS] = {
     LEDMatrix::Color24bit(0, 128, 0),
     LEDMatrix::Color24bit(0, 0, 255)};
 
-uint8_t brightness = 40; // current brightness of leds
-
 // timestamp variables
 long lastheartbeat = millis();                             // time of last heartbeat sending
-long lastStep = millis();                                  // time of last animation step
-long lastLEDdirect = 0;                                    // time of last direct LED command (=> fall back to normal mode after timeout)
 long lastNTPUpdate = millis() - (PERIOD_NTPUPDATE - 5000); // time of last NTP update
 long lastAnimationStep = millis();                         // time of last Matrix update
 
@@ -147,11 +134,9 @@ long lastAnimationStep = millis();                         // time of last Matri
 UDPLogger logger;
 WiFiUDP NTPUDP;
 NTPClientPlus ntp = NTPClientPlus(NTPUDP, "pool.ntp.org", 1, true);
-LEDMatrix ledmatrix = LEDMatrix(&matrix, brightness, &logger);
-WordClock germanClock = WordClock(ledmatrix, logger);
+LEDMatrix ledmatrix = LEDMatrix(&matrix, 40, &logger);
 
 float filterFactor = DEFAULT_SMOOTHING_FACTOR; // stores smoothing factor for led transition
-uint32_t maincolor_clock = colors24bit[2];     // color of the clock and digital clock
 bool apmode = false;                           // stores if WiFi AP mode is active
 
 // Watchdog counter to trigger restart if NTP update was not possible 30 times in a row (5min)
@@ -169,12 +154,6 @@ void setup()
   Serial.println();
   Serial.printf("\nSketchname: %s\nBuild: %s\n", (__FILE__), (__TIMESTAMP__));
   Serial.println();
-
-  modeConfig = config::init(server, logger, [](const config::ModeConfig &config)
-                            { 
-                              modeConfig = config; 
-                              Serial.printf("3. switched to mode %s\n",config::modeName(config).c_str());
-                              });
 
   // setup Matrix LED functions
   ledmatrix.setupMatrix();
@@ -272,10 +251,6 @@ void setup()
   // setup OTA
   setupOTA(hostname);
 
-  server.on("/cmd", handleCommand);                    // process commands
-  server.on("/data", handleDataRequest);               // process datarequests
-  server.on("/leddirect", HTTP_POST, handleLEDDirect); // Call the 'handleLEDDirect' function when a POST request is made to URI "/leddirect"
-
   server.begin();
 
   // create UDP Logger to send logging messages via UDP multicast
@@ -312,11 +287,11 @@ void setup()
 
     // display IP
     uint8_t address = WiFi.localIP()[3];
-    ledmatrix.printChar(1, 0, 'I', maincolor_clock);
-    ledmatrix.printChar(5, 0, 'P', maincolor_clock);
-    ledmatrix.printNumber(0, 6, (address / 100), maincolor_clock);
-    ledmatrix.printNumber(4, 6, (address / 10) % 10, maincolor_clock);
-    ledmatrix.printNumber(8, 6, address % 10, maincolor_clock);
+    ledmatrix.printChar(1, 0, 'I', colors24bit[2]);
+    ledmatrix.printChar(5, 0, 'P', colors24bit[2]);
+    ledmatrix.printNumber(0, 6, (address / 100), colors24bit[2]);
+    ledmatrix.printNumber(4, 6, (address / 10) % 10, colors24bit[2]);
+    ledmatrix.printNumber(8, 6, address % 10, colors24bit[2]);
     ledmatrix.drawOnMatrixInstant();
     delay(2000);
 
@@ -325,35 +300,17 @@ void setup()
     ledmatrix.drawOnMatrixInstant();
   }
 
+
   // setup NTP
   ntp.setupNTPClient();
   logger.logString("NTP running");
   logger.logString("Time: " + ntp.getFormattedTime());
   logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
 
-  // show the current time for short time in words
-  int hours = ntp.getHours24();
-  int minutes = ntp.getMinutes();
-  uint8_t defaultConfig[12];
-  germanClock.show(defaultConfig, hours, minutes, maincolor_clock);
-  ledmatrix.drawOnMatrixSmooth(filterFactor);
-
-  // Read brightness setting from EEPROM, lower limit is 10 so that the LEDs are not completely off
-  brightness = std::visit(Overload{
-                              [&](config::BaseConfig &config)
-                              {
-                                return config.brightness;
-                              },
-                              [&](auto &config)
-                              {
-                                return 10;
-                              },
-                          },
-                          modeConfig);
-  if (brightness < 10)
-    brightness = 10;
-  logger.logString("Brightness: " + String(brightness));
-  ledmatrix.setBrightness(brightness);
+  modeConfig = config::init(server, ledmatrix, logger,ntp, [](const config::ModeConfig &config)
+                            { 
+                              modeConfig = config; 
+                              Serial.printf("3. switched to mode %s\n",config::modeName(config).c_str()); });
 }
 
 // ----------------------------------------------------------------------------------
@@ -384,34 +341,7 @@ void loop()
   }
 
   // handle mode behaviours (trigger loopCycles of different modes depending on current mode)
-  if ((millis() - lastStep > PERIOD_TIMEVISUUPDATE) && (millis() - lastLEDdirect > TIMEOUT_LEDDIRECT))
-  {
-    std::visit(Overload{
-                   [](const config::WordClockConfig &config)
-                   {
-                     int hours = ntp.getHours24();
-                     int minutes = ntp.getMinutes();
-                     if(config.fixed) 
-                     {
-                        hours=config.hours % 24;
-                        minutes=config.minutes % 60;
-                     }
-                     germanClock.show(config.config, hours, minutes, maincolor_clock);
-                   },
-                   [](const config::DigiClockConfig &config)
-                   {
-                     int hours = ntp.getHours24();
-                     int minutes = ntp.getMinutes();
-                     showDigitalClock(hours, minutes, maincolor_clock);
-                   },
-                   [](const auto &config)
-                   {
-                   },
-               },
-               modeConfig);
-
-    lastStep = millis();
-  }
+  config::loop(millis());
 
   // periodically write colors to matrix
   if (millis() - lastAnimationStep > PERIOD_MATRIXUPDATE)
@@ -484,240 +414,16 @@ void stateChange(uint8_t newState)
   // first clear matrix
   ledmatrix.gridFlush();
   // set new state
-  //currentState = newState;
-  //logger.logString("State change to: " + stateNames[currentState]);
+  // currentState = newState;
+  // logger.logString("State change to: " + stateNames[currentState]);
   delay(5);
   logger.logString("FreeMemory=" + String(ESP.getFreeHeap()));
-}
-
-/**
- * @brief Handler for POST requests to /leddirect.
- *
- * Allows the control of all LEDs from external source.
- * It will overwrite the normal program for 5 seconds.
- * A 11x11 picture can be sent as base64 encoded string to be displayed on matrix.
- *
- */
-void handleLEDDirect()
-{
-  if (server.method() != HTTP_POST)
-  {
-    server.send(405, "text/plain", "Method Not Allowed");
-  }
-  else
-  {
-    String message = "POST data was:\n";
-    /*logger.logString(message);
-    delay(10);
-    for (uint8_t i = 0; i < server.args(); i++) {
-      message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-      logger.logString(server.arg(i));
-      delay(10);
-    }*/
-    if (server.args() == 1)
-    {
-      String data = String(server.arg(0));
-      int dataLength = data.length();
-      // char byteArray[dataLength];
-      // data.toCharArray(byteArray, dataLength);
-
-      // base64 decoding
-      char base64data[dataLength];
-      data.toCharArray(base64data, dataLength);
-      int base64dataLen = dataLength;
-      int decodedLength = Base64.decodedLength(base64data, base64dataLen);
-      char byteArray[decodedLength];
-      Base64.decode(byteArray, base64data, base64dataLen);
-
-      /*for(int i = 0; i < 10; i++){
-        logger.logString(String((int)(byteArray[i])));
-        delay(10);
-      }*/
-
-      for (int i = 0; i < dataLength; i += 4)
-      {
-        uint8_t red = byteArray[i];       // red
-        uint8_t green = byteArray[i + 1]; // green
-        uint8_t blue = byteArray[i + 2];  // blue
-        ledmatrix.gridAddPixel((i / 4) % LEDMatrix::width, (i / 4) / LEDMatrix::height, LEDMatrix::Color24bit(red, green, blue));
-      }
-      ledmatrix.drawOnMatrixInstant();
-
-      lastLEDdirect = millis();
-    }
-    server.send(200, "text/plain", message);
-  }
 }
 
 /**
  * @brief Set main color
  *
  */
-
-void setMainColor(uint8_t red, uint8_t green, uint8_t blue)
-{
-  maincolor_clock = LEDMatrix::Color24bit(red, green, blue);
-  // EEPROM.commit();
-}
-
-/**
- * @brief Load maincolor from EEPROM
- *
- */
-
-void initColor()
-{
-  maincolor_clock = std::visit(Overload{
-                                   [](config::BaseConfig &config)
-                                   {
-                                     return config.color < 50 ? colors24bit[2] : config.color;
-                                   },
-                                   [](auto &config)
-                                   {
-                                     return colors24bit[2];
-                                   },
-                               },
-                               modeConfig);
-}
-
-/**
- * @brief Handler for handling commands sent to "/cmd" url
- *
- */
-void handleCommand()
-{
-  // receive command and handle accordingly
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    Serial.print(server.argName(i));
-    Serial.print(F(": "));
-    Serial.println(server.arg(i));
-  }
-
-  if (server.argName(0) == "led") // the parameter which was sent to this server is led color
-  {
-    String colorstr = server.arg(0) + "-";
-    String redstr = split(colorstr, '-', 0);
-    String greenstr = split(colorstr, '-', 1);
-    String bluestr = split(colorstr, '-', 2);
-    logger.logString(colorstr);
-    logger.logString("r: " + String(redstr.toInt()));
-    logger.logString("g: " + String(greenstr.toInt()));
-    logger.logString("b: " + String(bluestr.toInt()));
-    // set new main color
-    setMainColor(redstr.toInt(), greenstr.toInt(), bluestr.toInt());
-  }
-  else if (server.argName(0) == "mode") // the parameter which was sent to this server is mode change
-  {
-    String modestr = server.arg(0);
-    logger.logString("Mode change via Webserver to: " + modestr);
-    // set current mode/state accordant sent mode
-    if (modestr == "clock")
-    {
-      stateChange(st_clock);
-    }
-    else if (modestr == "diclock")
-    {
-      stateChange(st_diclock);
-    }
-  }
-  else if (server.argName(0) == "setting")
-  {
-    String timestr = server.arg(0) + "-";
-    logger.logString("setting change via Webserver to: " + timestr);
-    brightness = split(timestr, '-', 4).toInt();
-    if (brightness < 10)
-      brightness = 10;
-    logger.logString("Brightness: " + String(brightness));
-    ledmatrix.setBrightness(brightness);
-  }
-  else if (server.argName(0) == "resetwifi")
-  {
-    wifiManager.resetSettings();
-    // run LED test.
-    for (int r = 0; r < LEDMatrix::height; r++)
-    {
-      for (int c = 0; c < LEDMatrix::width; c++)
-      {
-        matrix.fillScreen(0);
-        matrix.drawPixel(c, r, LEDMatrix::color24to16bit(colors24bit[2]));
-        matrix.show();
-        delay(10);
-      }
-    }
-
-    // clear Matrix
-    matrix.fillScreen(0);
-    matrix.show();
-    delay(200);
-  }
-
-  server.send(204, "text/plain", "No Content"); // this page doesn't send back content --> 204
-}
-
-/**
- * @brief Handler for GET requests
- *
- */
-void handleDataRequest()
-{
-  // receive data request and handle accordingly
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    Serial.print(server.argName(i));
-    Serial.print(F(": "));
-    Serial.println(server.arg(i));
-  }
-
-  if (server.argName(0) == "key") // the parameter which was sent to this server is led color
-  {
-    String message = "{";
-    String keystr = server.arg(0);
-    if (keystr == "mode")
-    {
-      //message += "\"mode\":\"" + stateNames[currentState] + "\"";
-      //message += ",";
- //     message += "\"modeid\":\"" + String(currentState) + "\"";
-      message += ",";
-      message += "\"brightness\":\"" + String(brightness) + "\"";
-    }
-    message += "}";
-    server.send(200, "application/json", message);
-  }
-}
-/*
-void handleConfigRequest() {
-  JsonDocument json;
-
-  String message;
-  serializeJsonPretty(json, message);
-
-  server.send(200, "application/json", message);
-}
-
-void handleTimeDefsRequest() {
-  auto config = timedef::getConfig();
-  JsonDocument json;
-  auto ja = json.to<JsonArray>();
-  for (int i = 0; i < 12; i++)
-  {
-    auto jai = ja.add<JsonArray>();
-    auto ta = config.periods[i];
-    if(ta[0]) {
-      jai.add(ta[0]);
-      if(ta[1]) {
-        jai.add(ta[1]);
-      }
-    }
-  }
-
-
-  String message;
-  serializeJsonPretty(json, message);
-
-  server.send(200, "application/json", message);
-}
-*/
 
 /**
  * @brief Convert Integer to String with leading zero

@@ -4,22 +4,32 @@
 #include <tuple>
 #include "ledmatrix.h"
 #include "udplogger.h"
+#include "baseconfig.h"
 
-
-class WordClock
+namespace wordclock
 {
-public:
-    WordClock(LEDMatrix& ledmatrix, UDPLogger& logger);
+    using namespace config;
 
-    void show(const uint8_t config[12], uint8_t hours,uint8_t minutes, uint32_t color);  
+    struct WordClockConfig;
 
-private:
-    int showStringOnClock(const uint8_t config[12], uint8_t hours,uint8_t minutes, uint32_t color);
-    void drawMinuteIndicator(uint8_t minutes, uint32_t color);
+    struct WordClockHandler : ModeTypeHandler<WordClockConfig>
+    {
+        constexpr static const char *const TYPE = "WORDCLOCK";
+        virtual void init(WordClockConfig &modeConfig,Env& env, const BaseConfig *old) override;
+        virtual void toJson(const WordClockConfig &modeConfig,Env& env, JsonObject doc) override;
+        virtual void fromJson(WordClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
+        virtual uint16_t onActivate(WordClockConfig &modeConfig, Env& env) override;
+        virtual uint16_t onLoop(WordClockConfig &modeConfig, Env& env, unsigned long millis) override;
 
-    LEDMatrix& ledmatrix;
-    UDPLogger& logger;
-    String message;
-};
+    };
+    struct WordClockConfig : BaseConfig
+    {
+        using handler_type = WordClockHandler;
+        uint8_t config[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        bool fixed;
+        uint8_t hours;
+        uint8_t minutes;
+    };
 
+}
 #endif

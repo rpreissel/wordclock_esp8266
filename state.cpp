@@ -11,13 +11,6 @@ namespace eeprom
     constexpr uint8_t MODE_COUNT = 8;
     constexpr uint8_t INIT_MARKER = 0x42;
 
-    enum class Type : uint8_t
-    {
-        EMPTY = 0,
-        WORDCLOCK = 1,
-        DIGICLOCK = 2
-    };
-
     struct ModeConfig
     {
         // 4 bits for type + config data
@@ -45,7 +38,7 @@ namespace eeprom
 
 namespace config
 {
-    
+
     struct Error
     {
     };
@@ -53,16 +46,18 @@ namespace config
     struct Initialized
     {
         ESP8266WebServer &server;
-        UDPLogger &logger;
+        Env env;
 
         UpdateHandler updateHandler;
 
         eeprom::EEPROMConfig eepromConfig;
         ModeConfig modes[eeprom::MODE_COUNT];
         int current_mode_index;
+        unsigned long lastAnimationStep;
+        uint16_t animationTime;
 
-        Initialized(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler)
-            : server(server), logger(logger), updateHandler(updateHandler) {}
+        Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp, UpdateHandler updateHandler)
+            : server(server), env{ledmatrix, logger, ntp}, updateHandler(updateHandler) {}
 
         ModeConfig &currentMode()
         {
@@ -79,9 +74,10 @@ namespace config
 
     void loadFromEEProm(Initialized &init);
     void initServerEndpoints(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler);
-    void unpackModeConfig(const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config);
+    void unpackModeConfig(Env& env,const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config);
+    void activateCurrent(Initialized &init);
 
-    ModeConfig init(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler)
+    ModeConfig init(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp,UpdateHandler updateHandler)
     {
         Serial.println(F("enter init"));
         initServerEndpoints(server, logger, updateHandler);
@@ -93,9 +89,10 @@ namespace config
                     // Init EEPROM
                     EEPROM.begin(sizeof(eeprom::EEPROMConfig));
 
-                    auto &init = moduleState.emplace<Initialized>(server, logger, updateHandler);
+                    auto &init = moduleState.emplace<Initialized>(server, ledmatrix, logger, ntp, updateHandler);
                     loadFromEEProm(init);
                     Serial.println("init currentMode " + init.currentMode().index());
+                    activateCurrent(init);
                     return init.currentMode();
                 },
                 [](Initialized &init)
@@ -118,15 +115,15 @@ namespace config
             {
                 init.modes[i].emplace<Empty>();
             }
-            reInit(WordClockHandler::TYPE, init.modes[0]);
-            reInit(DigiClockHandler::TYPE, init.modes[1]);
+            reInit(wordclock::WordClockHandler::TYPE, init.env, init.modes[0]);
+            reInit(digiclock::DigiClockHandler::TYPE, init.env, init.modes[1]);
             init.current_mode_index = 0;
         }
         else
         {
             for (int i = 0; i < eeprom::MODE_COUNT; i++)
             {
-                unpackModeConfig(init.eepromConfig.modes, i, init.modes[i]);
+                unpackModeConfig(init.env, init.eepromConfig.modes, i, init.modes[i]);
             }
 
             init.current_mode_index = init.eepromConfig.startMode;
@@ -137,43 +134,69 @@ namespace config
         }
     }
 
-    void unpackModeConfig(const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config)
+    void unpackModeConfig(Env& env,const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config)
     {
         eeprom::ModeConfig modeConfig = modeConfigs[index];
-        eeprom::Type mode = static_cast<eeprom::Type>(modeConfig.type && 0b1111);
+        auto type = modeConfig.type && 0b1111;
+        reInit(type, env, config);
+        /*
+                switch (mode)
+                {
+                case eeprom::Type::WORDCLOCK:
+                {
+                    auto &wordClockConfig = config.emplace<wordclock::WordClockConfig>();
+                    uint32_t bitConfig = modeConfig.config[0] && 0b11'11'11'11'11'11'11'11'11'11'11'11;
+                    for (int c = 0; c < 12; c++)
+                    {
+                        wordClockConfig.config[c] = (bitConfig >> (2 * c)) & 0x03;
+                    }
+                }
+                break;
+                case eeprom::Type::DIGICLOCK:
+                    config.emplace<digiclock::DigiClockConfig>();
+                    break;
+                default:
+                    config.emplace<Empty>();
+                    break;
+                }
 
-        switch (mode)
-        {
-        case eeprom::Type::WORDCLOCK:
-        {
-            auto &wordClockConfig = config.emplace<WordClockConfig>();
-            uint32_t bitConfig = modeConfig.config[0] && 0b11'11'11'11'11'11'11'11'11'11'11'11;
-            for (int c = 0; c < 12; c++)
-            {
-                wordClockConfig.config[c] = (bitConfig >> (2 * c)) & 0x03;
-            }
-        }
-        break;
-        case eeprom::Type::DIGICLOCK:
-            config.emplace<DigiClockConfig>();
-            break;
-        default:
-            config.emplace<Empty>();
-            break;
-        }
+                std::visit(
+                    Overload{
+                        [&modeConfig, index](BaseConfig &config)
+                        {
+                            config.name = modeConfig.name;
+                            config.brightness = modeConfig.color >> 24;
+                            config.color = modeConfig.color & 0x0fff;
+                        },
+                        [](auto &config) {
 
+                        }},
+                    config);
+                    */
+    }
+
+    void activateCurrent(Initialized &init)
+    {
+        init.env.ledmatrix.gridFlush();
+        init.animationTime = onActivate(init.currentMode(), init.env);
+    }
+
+    void loop(unsigned long millis)
+    {
         std::visit(
             Overload{
-                [&modeConfig, index](BaseConfig &config)
+                [=](Initialized &init)
                 {
-                    config.name = modeConfig.name;
-                    config.brightness = modeConfig.color >> 24;
-                    config.color = modeConfig.color & 0x0fff;
+                    if (init.animationTime > 0 && millis - init.lastAnimationStep > init.animationTime)
+                    {
+                        init.animationTime = onLoop(init.currentMode(), init.env, millis);
+                        init.lastAnimationStep = millis;
+                    }
                 },
-                [](auto &config) {
+                [](auto &init) {
 
                 }},
-            config);
+            moduleState);
     }
 
     void on(ESP8266WebServer &server, const String &uri, HTTPMethod method, UpdateHandler updateHandler, std::function<bool(Initialized &)> handler)
@@ -198,147 +221,12 @@ namespace config
                         moduleState); });
     }
 
-    void EmptyTypeHandler::toJson(const Empty &config, JsonObject current)
-    {
-        current[F("type")] = TYPE;
-    }
-
-    void EmptyTypeHandler::fromJson(Empty &config, JsonObjectConst current)
-    {
-    }
-
-    void EmptyTypeHandler::init(Empty &config, const BaseConfig *old)
-    {
-    }
-
-    void OffTypeHandler::toJson(const OffConfig &config, JsonObject current)
-    {
-        current[F("type")] = TYPE;
-    }
-
-    void OffTypeHandler::fromJson(OffConfig &config, JsonObjectConst current)
-    {
-    }
-
-    void OffTypeHandler::init(OffConfig &config, const BaseConfig *old)
-    {
-    }
-
-    void baseConfigInit(BaseConfig &config,  const BaseConfig *old, const char *defaultName)
-    {
-        if (old)
-        {
-            config.name = old->name;
-            config.color = old->color;
-            config.brightness = old->brightness;
-        }
-        else
-        {
-            config.name = defaultName;
-            config.color = 0xfff;
-            config.brightness = 50;
-        }
-    }
-
-    void baseConfigToJson(const BaseConfig &config, JsonObject current)
-    {
-        current[F("name")] = config.name;
-        current[F("color")] = config.color;
-        current[F("brightness")] = config.brightness;
-    }
-
-    void baseConfigFromJson(BaseConfig &config, JsonObjectConst doc)
-    {
-        JsonVariantConst brightness = doc[F("brightness")];
-        if (!brightness.isNull())
-        {
-            config.brightness = brightness.as<int>();
-        }
-        JsonVariantConst color = doc[F("color")];
-        if (!color.isNull())
-        {
-            config.color = color.as<int>();
-        }
-        const char *name = doc[F("name")];
-        if (name)
-        {
-            config.name = name;
-        }
-    }
-
-    void WordClockHandler::toJson(const WordClockConfig &config, JsonObject current)
-    {
-        current[F("type")] = TYPE;
-        baseConfigToJson(config, current);
-
-        auto configArray = current[F("config")].to<JsonArray>();
-        for (int c = 0; c < 12; c++)
-        {
-            configArray.add(config.config[c]);
-        }
-        current[F("fixed")] = config.fixed;
-        current[F("hours")] = config.hours;
-        current[F("minutes")] = config.minutes;
-    }
-
-    void WordClockHandler::fromJson(WordClockConfig &config, JsonObjectConst doc)
-    {
-        baseConfigFromJson(config, doc);
-        Serial.println(F("j1"));
-        JsonVariantConst clockConfig = doc[F("config")];
-        if (!clockConfig.isNull())
-        {
-            Serial.println(F("j2"));
-            JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
-            for (int i = 0; i < 12; i++)
-            {
-                config.config[i] = ar[i];
-            }
-        }
-        JsonVariantConst fixed = doc[F("fixed")];
-        if (!fixed.isNull())
-        {
-            config.fixed = fixed.as<bool>();
-        }
-        JsonVariantConst hours = doc[F("hours")];
-        if (!hours.isNull())
-        {
-            config.hours = hours.as<uint8_t>();
-        }
-        JsonVariantConst minutes = doc[F("minutes")];
-        if (!minutes.isNull())
-        {
-            config.minutes = minutes.as<uint8_t>();
-        }
-    }
-
-    void WordClockHandler::init(WordClockConfig &config, const BaseConfig *old)
-    {
-        baseConfigInit(config, old, TYPE);
-    }
-
-    void DigiClockHandler::toJson(const DigiClockConfig &config, JsonObject current)
-    {
-        current[F("type")] = TYPE;
-        baseConfigToJson(config, current);
-    }
-
-    void DigiClockHandler::fromJson(DigiClockConfig &config, JsonObjectConst current)
-    {
-        baseConfigFromJson(config, current);
-    }
-
-    void DigiClockHandler::init(DigiClockConfig &config, const BaseConfig *old)
-    {
-        baseConfigInit(config, old, TYPE);
-    }
-
-    bool onGetCurrent(ESP8266WebServer &server, UDPLogger &logger, Initialized &init)
+    bool onGetCurrent(Initialized &init)
     {
 
         JsonDocument json;
         JsonObject current = json["current"].to<JsonObject>();
-        toJson(init.currentMode(), init.current_mode_index, current);
+        toJson(init.currentMode(), init.env, init.current_mode_index, current);
 
         auto modes = json["modes"].to<JsonArray>();
         for (int i = 0; i < eeprom::MODE_COUNT; i++)
@@ -346,28 +234,28 @@ namespace config
             auto mode = modes.add<JsonObject>();
             mode[F("index")] = i;
             mode[F("type")] = modeType(init.modes[i]);
-            if(auto baseConfig = toBaseConfig(init.modes[i]))
+            if (auto baseConfig = toBaseConfig(init.modes[i]))
             {
-                 mode[F("name")] = baseConfig ->name;
+                mode[F("name")] = baseConfig->name;
             }
         }
 
         String message;
         serializeJsonPretty(json, message);
 
-        server.send(200, "application/json", message);
+        init.server.send(200, "application/json", message);
         return false;
     }
 
-    bool onChangeCurrent(ESP8266WebServer &server, UDPLogger &logger, Initialized &init)
+    bool onChangeCurrent(Initialized &init)
     {
-        auto text = server.arg("plain");
+        auto text = init.server.arg("plain");
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, text);
         if (error)
         {
             Serial.println(F("deserializeJson() failed: "));
-            server.send(400, "text/plain", error.c_str());
+            init.server.send(400, "text/plain", error.c_str());
             return false;
         }
 
@@ -378,30 +266,31 @@ namespace config
             const char *typeCstr = doc[F("type")];
             if (typeCstr)
             {
-                reInit(typeCstr, init.currentMode());                                
+                reInit(typeCstr, init.env, init.currentMode());
             }
 
-            fromJson(init.currentMode(), doc.as<JsonObjectConst>());
+            fromJson(init.currentMode(), init.env, doc.as<JsonObjectConst>());
+            activateCurrent(init);
 
             notifyUpdateHandler = true;
         }
         doc.clear();
-        toJson(init.currentMode(), init.current_mode_index, doc.to<JsonObject>());
+        toJson(init.currentMode(), init.env, init.current_mode_index, doc.to<JsonObject>());
         String message;
         serializeJsonPretty(doc, message);
-        server.send(200, "application/json", message);
+        init.server.send(200, "application/json", message);
         return notifyUpdateHandler;
     }
 
-    bool onChangeMode(ESP8266WebServer &server, UDPLogger &logger, Initialized &init)
+    bool onChangeMode(Initialized &init)
     {
-        auto text = server.arg("plain");
+        auto text = init.server.arg("plain");
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, text);
         if (error)
         {
             Serial.println(F("deserializeJson() failed: "));
-            server.send(400, "text/plain", error.c_str());
+            init.server.send(400, "text/plain", error.c_str());
             return false;
         }
 
@@ -417,16 +306,17 @@ namespace config
             init.current_mode_index = mode;
             notifyUpdateHandler = true;
         }
+        activateCurrent(init);
 
         doc.clear();
-        toJson(init.currentMode(), init.current_mode_index, doc.to<JsonObject>());
+        toJson(init.currentMode(), init.env, init.current_mode_index, doc.to<JsonObject>());
         String message;
         serializeJsonPretty(doc, message);
-        server.send(200, "application/json", message);
+        init.server.send(200, "application/json", message);
         return notifyUpdateHandler;
     }
 
-    bool onTimedefsGet(ESP8266WebServer &server, UDPLogger &logger, Initialized &init)
+    bool onTimedefsGet(Initialized &init)
     {
         auto config = timedef::getConfig();
         JsonDocument json;
@@ -448,19 +338,15 @@ namespace config
         String message;
         serializeJsonPretty(json, message);
 
-        server.send(200, "application/json", message);
+        init.server.send(200, "application/json", message);
         return false;
     }
 
     void initServerEndpoints(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler)
     {
-        on(server, "/current", HTTP_GET, updateHandler, [&](Initialized &init)
-           { return onGetCurrent(server, logger, init); });
-        on(server, "/current", HTTP_PATCH, updateHandler, [&](Initialized &init)
-           { return onChangeCurrent(server, logger, init); });
-        on(server, "/mode", HTTP_PUT, updateHandler, [&](Initialized &init)
-           { return onChangeMode(server, logger, init); });
-        on(server, "/timedefs", HTTP_GET, updateHandler, [&](Initialized &init)
-           { return onTimedefsGet(server, logger, init); });
+        on(server, "/current", HTTP_GET, updateHandler, onGetCurrent);
+        on(server, "/current", HTTP_PATCH, updateHandler, onChangeCurrent);
+        on(server, "/mode", HTTP_PUT, updateHandler, onChangeMode);
+        on(server, "/timedefs", HTTP_GET, updateHandler, onTimedefsGet);
     }
 }
