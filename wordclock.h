@@ -18,8 +18,8 @@ namespace wordclock
         virtual void init(WordClockConfig &modeConfig,Env& env, const BaseConfig *old) override;
         virtual void toJson(const WordClockConfig &modeConfig,Env& env, JsonObject doc) override;
         virtual void fromJson(WordClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
-        virtual uint16_t onActivate(WordClockConfig &modeConfig, Env& env) override;
-        virtual uint16_t onLoop(WordClockConfig &modeConfig, Env& env, unsigned long millis) override;
+        virtual uint32_t onActivate(WordClockConfig &modeConfig, Env& env) override;
+        virtual uint32_t onLoop(WordClockConfig &modeConfig, Env& env, unsigned long millis) override;
 
     };
     struct WordClockConfig : BaseConfig

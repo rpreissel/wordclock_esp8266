@@ -405,27 +405,6 @@ void loop()
 // ----------------------------------------------------------------------------------
 
 /**
- * @brief execute a state change to given newState
- *
- * @param newState the new state to be changed to
- */
-void stateChange(uint8_t newState)
-{
-  // first clear matrix
-  ledmatrix.gridFlush();
-  // set new state
-  // currentState = newState;
-  // logger.logString("State change to: " + stateNames[currentState]);
-  delay(5);
-  logger.logString("FreeMemory=" + String(ESP.getFreeHeap()));
-}
-
-/**
- * @brief Set main color
- *
- */
-
-/**
  * @brief Convert Integer to String with leading zero
  *
  * @param value
@@ -442,25 +421,6 @@ String leadingZero2Digit(int value)
   return msg;
 }
 
-/**
- * @brief Show the time as digits on the wordclock
- *
- * @param hours hours of time to display
- * @param minutes minutes of time to display
- * @param color  color to display (24bit)
- */
-void showDigitalClock(uint8_t hours, uint8_t minutes, uint32_t color)
-{
-  ledmatrix.gridFlush();
-  uint8_t fstDigitH = hours / 10;
-  uint8_t sndDigitH = hours % 10;
-  uint8_t fstDigitM = minutes / 10;
-  uint8_t sndDigitM = minutes % 10;
-  ledmatrix.printNumber(2, 0, fstDigitH, color);
-  ledmatrix.printNumber(6, 0, sndDigitH, color);
-  ledmatrix.printNumber(2, 6, fstDigitM, color);
-  ledmatrix.printNumber(6, 6, sndDigitM, color);
-}
 
 // setup Arduino OTA
 void setupOTA(String hostname)

@@ -65,14 +65,14 @@ namespace wordclock
     baseConfigInit(config, env, old, TYPE);
   }
 
-  uint16_t WordClockHandler::onActivate(WordClockConfig &modeConfig, Env &env)
+  uint32_t WordClockHandler::onActivate(WordClockConfig &modeConfig, Env &env)
   {
     env.ledmatrix.gridFlush();
     env.ledmatrix.setBrightness(modeConfig.brightness);
     return 1;
   }
 
-  uint16_t WordClockHandler::onLoop(WordClockConfig &modeConfig, Env &env, unsigned long millis)
+  uint32_t WordClockHandler::onLoop(WordClockConfig &modeConfig, Env &env, unsigned long millis)
   {
     env.ledmatrix.gridFlush();
     if (modeConfig.fixed)

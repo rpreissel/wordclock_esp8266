@@ -44,11 +44,11 @@ namespace config
         virtual void fromJson(TModeType &modeConfig, Env& env,JsonObjectConst doc)
         {
         }
-        virtual uint16_t onActivate(TModeType &modeConfig, Env& env)
+        virtual uint32_t onActivate(TModeType &modeConfig, Env& env)
         {
             return 0;
         }
-        virtual uint16_t onLoop(TModeType &modeConfig, Env& env, unsigned long millis)
+        virtual uint32_t onLoop(TModeType &modeConfig, Env& env, unsigned long millis)
         {
             return 0;
         }

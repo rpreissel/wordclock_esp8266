@@ -54,7 +54,7 @@ namespace config
         ModeConfig modes[eeprom::MODE_COUNT];
         int current_mode_index;
         unsigned long lastAnimationStep;
-        uint16_t animationTime;
+        uint32_t animationTime;
 
         Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp, UpdateHandler updateHandler)
             : server(server), env{ledmatrix, logger, ntp}, updateHandler(updateHandler) {}
