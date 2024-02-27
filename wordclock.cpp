@@ -137,7 +137,7 @@ namespace wordclock
   {
 
     timedef::timeToString(config, message, hours, minutes);
-    // logger.logString("time as String: " + String(message));
+    env.logger.logFormatted(F("time (%d:%d) as String: %s"), hours, minutes, message.c_str());
 
     int messageStart = 0;
     String word = "";
@@ -175,7 +175,7 @@ namespace wordclock
         else
         {
           // word is not possible to show on clock
-          env.logger.logString("word is not possible to show on clock: " + String(word));
+          env.logger.logFormatted(F("word is not possible to show on clock: %s"), word.c_str());
           return -1;
         }
         // logger.logString(String(nextSpace) + " - " + String());

@@ -44,15 +44,11 @@
 #include "ntp_client_plus.h"
 #include "ledmatrix.h"
 #include "tools.h"
-#include "wordclock.h"
-#include "timedef.h"
 #include "state.h"
 
 // ----------------------------------------------------------------------------------
 //                                        CONSTANTS
 // ----------------------------------------------------------------------------------
-
-config::ModeConfig modeConfig;
 
 #define NEOPIXELPIN 12 // pin to which the NeoPixels are attached
 #define NUMPIXELS 125  // number of pixels attached to Attiny85
@@ -256,15 +252,15 @@ void setup()
   // create UDP Logger to send logging messages via UDP multicast
   logger = UDPLogger(WiFi.localIP(), logMulticastIP, logMulticastPort);
   logger.setName("Wordclock 2.0");
-  logger.logString("Start program\n");
+  logger.logFormatted(F("Start program\n"));
   delay(10);
-  logger.logString("Sketchname: " + String(__FILE__));
+  logger.logFormatted(F("Sketchname: %s"),__FILE__);
   delay(10);
-  logger.logString("Build: " + String(__TIMESTAMP__));
+  logger.logFormatted(F("Build: %s"), __TIMESTAMP__);
   delay(10);
-  logger.logString("IP: " + WiFi.localIP().toString());
+  logger.logFormatted(F("IP: %s"), WiFi.localIP().toString().c_str());
   delay(10);
-  logger.logString("Reset Reason: " + ESP.getResetReason());
+  logger.logFormatted(F("Reset Reason: %s"), ESP.getResetReason().c_str());
 
   if (!ESP.getResetReason().equals("Software/System restart"))
   {
@@ -303,14 +299,11 @@ void setup()
 
   // setup NTP
   ntp.setupNTPClient();
-  logger.logString("NTP running");
-  logger.logString("Time: " + ntp.getFormattedTime());
-  logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
+  logger.logFormatted(F("NTP running"));
+  logger.logFormatted(F("Time: %s"), ntp.getFormattedTime());
+  logger.logFormatted(F("TimeOffset (seconds): %d"), ntp.getTimeOffset());
 
-  modeConfig = config::init(server, ledmatrix, logger,ntp, [](const config::ModeConfig &config)
-                            { 
-                              modeConfig = config; 
-                              Serial.printf("3. switched to mode %s\n",config::modeName(config).c_str()); });
+  config::init(server, ledmatrix, logger,ntp);
 }
 
 // ----------------------------------------------------------------------------------
@@ -328,7 +321,7 @@ void loop()
   // send regularly heartbeat messages via UDP multicast
   if (millis() - lastheartbeat > PERIOD_HEARTBEAT)
   {
-    logger.logString("Heartbeat, state: " + config::modeName(modeConfig) + ", FreeHeap: " + ESP.getFreeHeap() + ", HeapFrag: " + ESP.getHeapFragmentation() + ", MaxFreeBlock: " + ESP.getMaxFreeBlockSize() + "\n");
+    logger.logFormatted(F("Heartbeat, state: %s, FreeHeap: %d, HeapFrag: %d, MaxFreeBlock: %d"), config::currentModeDescription().c_str(), ESP.getFreeHeap(), ESP.getHeapFragmentation(),ESP.getMaxFreeBlockSize() );
     lastheartbeat = millis();
 
     // Check wifi status (only if no apmode)
@@ -357,43 +350,44 @@ void loop()
     if (res == 0)
     {
       ntp.calcDate();
-      logger.logString("NTP-Update successful");
-      logger.logString("Time: " + ntp.getFormattedTime());
-      logger.logString("Date: " + ntp.getFormattedDate());
-      logger.logString("Day of Week (Mon=1, Sun=7): " + String(ntp.getDayOfWeek()));
-      logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
-      logger.logString("Summertime: " + String(ntp.updateSWChange()));
+      logger.logFormatted(F("NTP-Update successful"));
+      logger.logFormatted(F("Time: %s"), ntp.getFormattedTime().c_str());
+      logger.logFormatted(F("Date: %s"), ntp.getFormattedDate().c_str());
+      logger.logFormatted(F("Day of Week (Mon=1, Sun=7): %d"),ntp.getDayOfWeek());
+      logger.logFormatted(F("TimeOffset (seconds): %d"), ntp.getTimeOffset());
+      logger.logFormatted(F("Summertime: %d")), ntp.updateSWChange();
+    
       lastNTPUpdate = millis();
       watchdogCounter = 30;
     }
     else if (res == -1)
     {
-      logger.logString("NTP-Update not successful. Reason: Timeout");
+      logger.logFormatted(F("NTP-Update not successful. Reason: Timeout"));
       lastNTPUpdate += 10000;
       watchdogCounter--;
     }
     else if (res == 1)
     {
-      logger.logString("NTP-Update not successful. Reason: Too large time difference");
-      logger.logString("Time: " + ntp.getFormattedTime());
-      logger.logString("Date: " + ntp.getFormattedDate());
-      logger.logString("Day of Week (Mon=1, Sun=7): " + ntp.getDayOfWeek());
-      logger.logString("TimeOffset (seconds): " + String(ntp.getTimeOffset()));
-      logger.logString("Summertime: " + String(ntp.updateSWChange()));
+      logger.logFormatted(F("NTP-Update not successful. Reason: Too large time difference"));
+      logger.logFormatted(F("Time: %s"), ntp.getFormattedTime().c_str());
+      logger.logFormatted(F("Date: %s"), ntp.getFormattedDate().c_str());
+      logger.logFormatted(F("Day of Week (Mon=1, Sun=7): %d"),ntp.getDayOfWeek());
+      logger.logFormatted(F("TimeOffset (seconds): %d"), ntp.getTimeOffset());
+      logger.logFormatted(F("Summertime: %d")), ntp.updateSWChange();
       lastNTPUpdate += 10000;
       watchdogCounter--;
     }
     else
     {
-      logger.logString("NTP-Update not successful. Reason: NTP time not valid (<1970)");
+      logger.logFormatted(F("NTP-Update not successful. Reason: NTP time not valid (<1970)"));
       lastNTPUpdate += 10000;
       watchdogCounter--;
     }
 
-    logger.logString("Watchdog Counter: " + String(watchdogCounter));
+    logger.logFormatted(F("Watchdog Counter: %d"), watchdogCounter);
     if (watchdogCounter <= 0)
     {
-      logger.logString("Trigger restart due to watchdog...");
+      logger.logFormatted(F("Trigger restart due to watchdog..."));
       delay(100);
       ESP.restart();
     }

@@ -5,6 +5,8 @@
 #include "tools.h"
 #include "timedef.h"
 #include "baseconfig.h"
+#include "wordclock.h"
+#include "digiclock.h"
 
 namespace eeprom
 {
@@ -38,7 +40,9 @@ namespace eeprom
 
 namespace config
 {
-
+    using EEPROMModeConfig = std::variant<config::Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig>;
+    using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
+    
     struct Error
     {
     };
@@ -48,16 +52,14 @@ namespace config
         ESP8266WebServer &server;
         Env env;
 
-        UpdateHandler updateHandler;
-
         eeprom::EEPROMConfig eepromConfig;
         ModeConfig modes[eeprom::MODE_COUNT];
         int current_mode_index;
         unsigned long lastAnimationStep;
         uint32_t animationTime;
 
-        Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp, UpdateHandler updateHandler)
-            : server(server), env{ledmatrix, logger, ntp}, updateHandler(updateHandler) {}
+        Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
+            : server(server), env{ledmatrix, logger, ntp}{}
 
         ModeConfig &currentMode()
         {
@@ -72,36 +74,87 @@ namespace config
 
     std::variant<std::monostate, Initialized, Error> moduleState;
 
+    String currentModeDescription() 
+    {
+        return std::visit(
+            Overload{
+                [&](Initialized& init)
+                {
+                    return modeName(init.currentMode());
+                },
+                [&](auto &init)
+                {
+                    return String(F("Not intialized"));
+                }},
+            moduleState);
+    }
+
     void loadFromEEProm(Initialized &init);
-    void initServerEndpoints(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler);
+    void initServerEndpoints(ESP8266WebServer &server);
     void unpackModeConfig(Env& env,const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config);
     void activateCurrent(Initialized &init);
 
-    ModeConfig init(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp,UpdateHandler updateHandler)
+    template <std::size_t I>
+    void reInit(ModeConfig &current,Env& env)
     {
-        Serial.println(F("enter init"));
-        initServerEndpoints(server, logger, updateHandler);
-        return std::visit(
+        const BaseConfig *old = toBaseConfig(current);
+        auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
+        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode,env, old);
+        current = newMode;
+    }
+
+    template <std::size_t I = 0>
+    void reInit(String typeName,Env& env, ModeConfig &current)
+    {
+        if constexpr (I < std::variant_size_v<EEPROMModeConfig>)
+        {
+            if (typeName.compareTo(std::variant_alternative_t<I, EEPROMModeConfig>::handler_type::TYPE) == 0)
+            {
+                reInit<I>(current, env);
+                return;
+            }
+            reInit<I + 1>(typeName, env, current);
+            return;
+        }
+        reInit<0>(current, env);
+    }
+
+    template <std::size_t I = 0>
+    void reInit(uint8_t typeIndex, Env& env, ModeConfig &current)
+    {
+        if constexpr (I < std::variant_size_v<EEPROMModeConfig>)
+        {
+            if (typeIndex == I)
+            {
+                reInit<I>(current, env);
+                return;
+            }
+            reInit<I + 1>(typeIndex, env, current);
+            return;
+        }
+        reInit<0>(current, env);
+    }
+
+
+    void init(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
+    {
+        initServerEndpoints(server);
+        std::visit(
             Overload{
                 [&](std::monostate &empty)
                 {
-                    Serial.println(F("init first time"));
+                    logger.logFormatted(F("init first time"));
                     // Init EEPROM
                     EEPROM.begin(sizeof(eeprom::EEPROMConfig));
 
-                    auto &init = moduleState.emplace<Initialized>(server, ledmatrix, logger, ntp, updateHandler);
+                    auto &init = moduleState.emplace<Initialized>(server, ledmatrix, logger, ntp);
                     loadFromEEProm(init);
-                    Serial.println("init currentMode " + init.currentMode().index());
+                    logger.logFormatted(F("start with mode: %d"), init.currentMode().index());
                     activateCurrent(init);
-                    return init.currentMode();
                 },
-                [](Initialized &init)
+                [&](auto &init)
                 {
-                    return init.currentMode();
-                },
-                [](auto &init)
-                {
-                    return ModeConfig(OffConfig());
+                    logger.logFormatted(F("ignore init"));
                 }},
             moduleState);
     }
@@ -199,29 +252,24 @@ namespace config
             moduleState);
     }
 
-    void on(ESP8266WebServer &server, const String &uri, HTTPMethod method, UpdateHandler updateHandler, std::function<bool(Initialized &)> handler)
+    void on(ESP8266WebServer &server, const String &uri, HTTPMethod method, std::function<void(Initialized &)> handler)
     {
-        server.on(uri, method, [handler, &server, &uri, updateHandler]()
+        server.on(uri, method, [handler, &server, &uri]()
                   { std::visit(
                         Overload{
-                            [handler, &uri, updateHandler](Initialized &init)
+                            [handler, &uri](Initialized &init)
                             {
-                                Serial.printf("handle %s (%d)\n", uri.c_str(), moduleState.index());
-                                if (handler(init))
-                                {
-                                    Serial.printf("3. switched to mode %s\n", config::modeType(init.currentMode()).c_str());
-                                    updateHandler(init.currentMode());
-                                }
+                                init.env.logger.logFormatted(F("handle %s (%d)"), uri.c_str(), moduleState.index());
+                                handler(init);
                             },
                             [&server, &uri](auto &init)
                             {
-                                Serial.printf("error %s (%d)\r", uri.c_str(), moduleState.index());
                                 server.send(400, "application/json", "{}");
                             }},
                         moduleState); });
     }
 
-    bool onGetCurrent(Initialized &init)
+    void onGetCurrent(Initialized &init)
     {
 
         JsonDocument json;
@@ -244,10 +292,9 @@ namespace config
         serializeJsonPretty(json, message);
 
         init.server.send(200, "application/json", message);
-        return false;
     }
 
-    bool onChangeCurrent(Initialized &init)
+    void onChangeCurrent(Initialized &init)
     {
         auto text = init.server.arg("plain");
         JsonDocument doc;
@@ -256,10 +303,9 @@ namespace config
         {
             Serial.println(F("deserializeJson() failed: "));
             init.server.send(400, "text/plain", error.c_str());
-            return false;
+            return;
         }
 
-        bool notifyUpdateHandler = false;
         int currentModeIndex = init.current_mode_index;
         if (currentModeIndex >= 0)
         {
@@ -271,18 +317,15 @@ namespace config
 
             fromJson(init.currentMode(), init.env, doc.as<JsonObjectConst>());
             activateCurrent(init);
-
-            notifyUpdateHandler = true;
         }
         doc.clear();
         toJson(init.currentMode(), init.env, init.current_mode_index, doc.to<JsonObject>());
         String message;
         serializeJsonPretty(doc, message);
         init.server.send(200, "application/json", message);
-        return notifyUpdateHandler;
     }
 
-    bool onChangeMode(Initialized &init)
+    void onChangeMode(Initialized &init)
     {
         auto text = init.server.arg("plain");
         JsonDocument doc;
@@ -291,20 +334,17 @@ namespace config
         {
             Serial.println(F("deserializeJson() failed: "));
             init.server.send(400, "text/plain", error.c_str());
-            return false;
+            return;
         }
 
         int mode = doc["mode"];
-        bool notifyUpdateHandler = false;
         if (mode >= 0 && mode < eeprom::MODE_COUNT)
         {
             init.current_mode_index = mode;
-            notifyUpdateHandler = true;
         }
         else if (mode == OffConfig::MODE_OFF_INDEX)
         {
             init.current_mode_index = mode;
-            notifyUpdateHandler = true;
         }
         activateCurrent(init);
 
@@ -313,10 +353,9 @@ namespace config
         String message;
         serializeJsonPretty(doc, message);
         init.server.send(200, "application/json", message);
-        return notifyUpdateHandler;
     }
 
-    bool onTimedefsGet(Initialized &init)
+    void onTimedefsGet(Initialized &init)
     {
         auto config = timedef::getConfig();
         JsonDocument json;
@@ -339,14 +378,13 @@ namespace config
         serializeJsonPretty(json, message);
 
         init.server.send(200, "application/json", message);
-        return false;
     }
 
-    void initServerEndpoints(ESP8266WebServer &server, UDPLogger &logger, UpdateHandler updateHandler)
+    void initServerEndpoints(ESP8266WebServer &server)
     {
-        on(server, "/current", HTTP_GET, updateHandler, onGetCurrent);
-        on(server, "/current", HTTP_PATCH, updateHandler, onChangeCurrent);
-        on(server, "/mode", HTTP_PUT, updateHandler, onChangeMode);
-        on(server, "/timedefs", HTTP_GET, updateHandler, onTimedefsGet);
+        on(server, "/current", HTTP_GET, onGetCurrent);
+        on(server, "/current", HTTP_PATCH, onChangeCurrent);
+        on(server, "/mode", HTTP_PUT,  onChangeMode);
+        on(server, "/timedefs", HTTP_GET, onTimedefsGet);
     }
 }
