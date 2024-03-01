@@ -184,6 +184,37 @@ namespace wordclock
   int showStringOnClock(Env &env, const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color);
   void drawMinuteIndicator(Env &env, uint8_t minutes, uint32_t color);
 
+  void WordClockHandler::toConfig(const WordClockConfig &modeConfig, Env &env, uint64_t config[])
+  {
+    auto &config0 = config[0];
+    config0 = 0;
+    for (int i = 11; i >= 0; i--)
+    {
+      config0 = config0 << 2;
+      config0 = config0 | (modeConfig.config[i] & 0b11);
+    }
+
+    auto &config1 = config[1];
+    config1 = 0;
+    config1 = modeConfig.fixed ? 1 : 0;
+    config1 = config1 | ((modeConfig.minutes & 0xFF) << 8);
+    config1 = config1 | ((modeConfig.hours & 0xFF) << 16);
+  }
+  void WordClockHandler::fromConfig(WordClockConfig &modeConfig, Env &env, const uint64_t config[])
+  {
+    auto config0 = config[0];
+    auto config1 = config[1];
+    for (int i = 0; i < 12; i++)
+    {
+      modeConfig.config[i] = (config0 & 0b11);
+      config0 = config0 >> 2;
+    }
+
+    modeConfig.fixed = config1 & 0xFF;
+    modeConfig.minutes = (config1 >> 8) & 0xFF;
+    modeConfig.hours = (config1 >> 16) & 0xFF;
+  }
+
   void WordClockHandler::toJson(const WordClockConfig &clock, Env &env, JsonObject data, JsonObject config)
   {
     baseConfigToJson(clock, env, data, config);
@@ -213,11 +244,9 @@ namespace wordclock
   void WordClockHandler::fromJson(WordClockConfig &config, Env &env, JsonObjectConst doc)
   {
     baseConfigFromJson(config, env, doc);
-    Serial.println(F("j1"));
     JsonVariantConst clockConfig = doc[F("config")];
     if (!clockConfig.isNull())
     {
-      Serial.println(F("j2"));
       JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
       for (int i = 0; i < 12; i++)
       {

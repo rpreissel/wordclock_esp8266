@@ -40,7 +40,7 @@ namespace modes
 {
     using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
-    
+
     struct Error
     {
     };
@@ -57,7 +57,7 @@ namespace modes
         uint32_t animationTime;
 
         Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
-            : server(server), env{ledmatrix, logger, ntp}{}
+            : server(server), env{ledmatrix, logger, ntp} {}
 
         ModeConfig &currentMode()
         {
@@ -72,11 +72,11 @@ namespace modes
 
     std::variant<std::monostate, Initialized, Error> moduleState;
 
-    String currentModeDescription() 
+    String currentModeDescription()
     {
         return std::visit(
             Overload{
-                [&](Initialized& init)
+                [&](Initialized &init)
                 {
                     return modeName(init.currentMode());
                 },
@@ -89,20 +89,19 @@ namespace modes
 
     void loadFromEEProm(Initialized &init);
     void initServerEndpoints(ESP8266WebServer &server);
-    void unpackModeConfig(Env& env,const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config);
     void activateCurrent(Initialized &init);
 
     template <std::size_t I>
-    void reInit(ModeConfig &current,Env& env)
+    void reInit(ModeConfig &current, Env &env)
     {
         const BaseConfig *old = toBaseConfig(current);
         auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
-        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode,env, old);
+        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env, old);
         current = newMode;
     }
 
     template <std::size_t I = 0>
-    void reInit(String typeName,Env& env, ModeConfig &current)
+    void reInit(String typeName, Env &env, ModeConfig &current)
     {
         if constexpr (I < std::variant_size_v<EEPROMModeConfig>)
         {
@@ -118,7 +117,7 @@ namespace modes
     }
 
     template <std::size_t I = 0>
-    void reInit(uint8_t typeIndex, Env& env, ModeConfig &current)
+    void reInit(uint8_t typeIndex, Env &env, ModeConfig &current)
     {
         if constexpr (I < std::variant_size_v<EEPROMModeConfig>)
         {
@@ -132,7 +131,6 @@ namespace modes
         }
         reInit<0>(current, env);
     }
-
 
     void init(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
     {
@@ -169,12 +167,35 @@ namespace modes
             reInit(wordclock::WordClockHandler::TYPE, init.env, init.modes[0]);
             reInit(digiclock::DigiClockHandler::TYPE, init.env, init.modes[1]);
             init.current_mode_index = 0;
+
+            init.eepromConfig.initMarker = eeprom::INIT_MARKER;
+            for (int i = 0; i < eeprom::MODE_COUNT; i++)
+            {
+                auto &mode = init.eepromConfig.modes[i];
+                mode.type = 0;
+                mode.config[0] = 0;
+                mode.config[1] = 0;
+                mode.color = 0;
+                mode.name[0] = 0;
+            }
+            init.eepromConfig.startMode = 0;
         }
         else
         {
             for (int i = 0; i < eeprom::MODE_COUNT; i++)
             {
-                unpackModeConfig(init.env, init.eepromConfig.modes, i, init.modes[i]);
+                const auto &eeprommode = init.eepromConfig.modes[i];
+                auto &mode = init.modes[i];
+                auto type = eeprommode.type && 0b1111;
+                reInit(type, init.env, mode);
+                BaseConfig *baseconfig = toBaseConfig(mode);
+                if (baseconfig)
+                {
+                    baseconfig->name = eeprommode.name;
+                    baseconfig->brightness = eeprommode.color >> 24;
+                    baseconfig->color = eeprommode.color & 0x0FFF;
+                }
+                fromConfig(mode, init.env, eeprommode.config);
             }
 
             init.current_mode_index = init.eepromConfig.startMode;
@@ -185,49 +206,32 @@ namespace modes
         }
     }
 
-    void unpackModeConfig(Env& env,const eeprom::ModeConfig modeConfigs[], uint8_t index, ModeConfig &config)
+    void saveToEEProm(Initialized &init)
     {
-        eeprom::ModeConfig modeConfig = modeConfigs[index];
-        auto type = modeConfig.type && 0b1111;
-        reInit(type, env, config);
-        /*
-                switch (mode)
-                {
-                case eeprom::Type::WORDCLOCK:
-                {
-                    auto &wordClockConfig = config.emplace<wordclock::WordClockConfig>();
-                    uint32_t bitConfig = modeConfig.config[0] && 0b11'11'11'11'11'11'11'11'11'11'11'11;
-                    for (int c = 0; c < 12; c++)
-                    {
-                        wordClockConfig.config[c] = (bitConfig >> (2 * c)) & 0x03;
-                    }
-                }
-                break;
-                case eeprom::Type::DIGICLOCK:
-                    config.emplace<digiclock::DigiClockConfig>();
-                    break;
-                default:
-                    config.emplace<Empty>();
-                    break;
-                }
+        for (int i = 0; i < eeprom::MODE_COUNT; i++)
+        {
+            auto &eeprommode = init.eepromConfig.modes[i];
+            auto &mode = init.modes[i];
 
-                std::visit(
-                    Overload{
-                        [&modeConfig, index](BaseConfig &config)
-                        {
-                            config.name = modeConfig.name;
-                            config.brightness = modeConfig.color >> 24;
-                            config.color = modeConfig.color & 0x0fff;
-                        },
-                        [](auto &config) {
+            eeprommode.type = mode.index() & 0xF;
+            const BaseConfig *baseconfig = toBaseConfig(mode);
+            if (baseconfig)
+            {
+                eeprommode.color = (baseconfig->brightness & 0x000F) << 24 | (baseconfig->color & 0x0FFF);
+                strncpy(eeprommode.name, baseconfig->name.c_str(), 10);
+            }
+            toConfig(mode, init.env, eeprommode.config);
+        }
 
-                        }},
-                    config);
-                    */
+        init.eepromConfig.startMode = init.current_mode_index < 0 ? 0 : init.current_mode_index;
+        EEPROM.put(0, init.eepromConfig);
+        EEPROM.commit();
+        init.env.logger.logFormatted(F("Flash EEPROM"));
     }
 
     void activateCurrent(Initialized &init)
     {
+        init.env.logger.logFormatted(F("Activate Mode (%d)"), init.current_mode_index);
         init.env.ledmatrix.gridFlush();
         init.animationTime = onActivate(init.currentMode(), init.env);
     }
@@ -257,7 +261,6 @@ namespace modes
                         Overload{
                             [handler, &uri](Initialized &init)
                             {
-                                init.env.logger.logFormatted(F("handle %s (%d)"), uri.c_str(), moduleState.index());
                                 handler(init);
                             },
                             [&server, &uri](auto &init)
@@ -269,7 +272,7 @@ namespace modes
 
     void onGetCurrent(Initialized &init)
     {
-
+        init.env.logger.logFormatted(F("On Get (%d)"), init.current_mode_index);
         JsonDocument json;
         JsonObject current = json["current"].to<JsonObject>();
         toJson(init.currentMode(), init.env, init.current_mode_index, current);
@@ -294,6 +297,7 @@ namespace modes
 
     void onChangeCurrent(Initialized &init)
     {
+        init.env.logger.logFormatted(F("On Change (%d)"), init.current_mode_index);
         auto text = init.server.arg("plain");
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, text);
@@ -314,11 +318,18 @@ namespace modes
             }
 
             JsonVariantConst data = doc[F("data")];
-            if(!data.isNull()) {
+            if (!data.isNull())
+            {
                 fromJson(init.currentMode(), init.env, data.as<JsonObjectConst>());
             }
 
             activateCurrent(init);
+
+            JsonVariantConst flash = doc[F("flash")];
+            if (!flash.isNull() && flash.as<bool>())
+            {
+                saveToEEProm(init);
+            }
         }
         doc.clear();
         toJson(init.currentMode(), init.env, init.current_mode_index, doc.to<JsonObject>());
@@ -329,6 +340,7 @@ namespace modes
 
     void onChangeMode(Initialized &init)
     {
+        init.env.logger.logFormatted(F("On Change Mode (%d)"), init.current_mode_index);
         auto text = init.server.arg("plain");
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, text);
@@ -349,6 +361,7 @@ namespace modes
             init.current_mode_index = mode;
         }
         activateCurrent(init);
+        saveToEEProm(init);
 
         doc.clear();
         toJson(init.currentMode(), init.env, init.current_mode_index, doc.to<JsonObject>());
@@ -357,11 +370,10 @@ namespace modes
         init.server.send(200, "application/json", message);
     }
 
-
     void initServerEndpoints(ESP8266WebServer &server)
     {
         on(server, "/current", HTTP_GET, onGetCurrent);
         on(server, "/current", HTTP_PATCH, onChangeCurrent);
-        on(server, "/mode", HTTP_PUT,  onChangeMode);
+        on(server, "/mode", HTTP_PUT, onChangeMode);
     }
 }

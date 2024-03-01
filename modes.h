@@ -38,6 +38,12 @@ namespace modes
         virtual void init(TModeType &modeConfig, Env& env, const BaseConfig *old)
         {
         }
+        virtual void toConfig(const TModeType &modeConfig, Env& env, uint64_t config[])
+        {
+        }
+        virtual void fromConfig(TModeType &modeConfig, Env& env, const uint64_t config[])
+        {
+        }
         virtual void toJson(const TModeType &modeConfig, Env& env, JsonObject data, JsonObject config)
         {
         }
@@ -91,6 +97,26 @@ namespace modes
     };
    
     template <typename... Args>
+    void fromConfig(std::variant<Args...> &para, Env& env, const uint64_t config[])
+    {
+        return std::visit(Overload{[config,&env](Args &mt)
+                                   {
+                                       _handler_instance<Args>::handler.fromConfig(mt, env, config);
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    void toConfig(std::variant<Args...> &para, Env& env, uint64_t config[])
+    {
+        return std::visit(Overload{[config,&env](Args &mt)
+                                   {
+                                       _handler_instance<Args>::handler.toConfig(mt, env, config);
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
     void toJson(std::variant<Args...> &para, Env& env, int index, JsonObject doc)
     {
         doc[F("index")] = index;
@@ -102,7 +128,7 @@ namespace modes
                                        _handler_instance<Args>::handler.toJson(mt, env, data, config);
                                    }...},
                           para);
-    }
+    }    
 
     template <typename... Args>
     void fromJson(std::variant<Args...> &para, Env& env, JsonObjectConst doc)
@@ -134,6 +160,19 @@ namespace modes
                           para);
     }
 
+    template <typename... Args>
+    BaseConfig *toBaseConfig(std::variant<Args...> &para)
+    {
+        return std::visit(Overload{[](Args &mt) -> BaseConfig *
+                                   {
+                                       if constexpr (std::is_base_of<BaseConfig, Args>())
+                                       {
+                                           return &mt;
+                                       }
+                                       return nullptr;
+                                   }...},
+                          para);
+    }
     template <typename... Args>
     String modeName(const std::variant<Args...> &para)
     {

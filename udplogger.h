@@ -31,7 +31,7 @@ class UDPLogger{
         IPAddress _interfaceAddr;
         int _port;
         WiFiUDP _Udp;
-        char _packetBuffer[100];
+        char _packetBuffer[200];
         long _lastSend;
 };
 

@@ -34,7 +34,7 @@ void UDPLogger::logString(const char * rawMessage, bool lineFeed)
         Serial.println(logmessage);
     }
     _Udp.beginPacketMulticast(_multicastAddr, _port, _interfaceAddr);
-    logmessage.toCharArray(_packetBuffer, 100);
+    logmessage.toCharArray(_packetBuffer, 200);
     _Udp.print(_packetBuffer);
     _Udp.endPacket();
     _lastSend = millis();
@@ -44,7 +44,7 @@ void UDPLogger::logFormatted(const __FlashStringHelper * format, ...)
 {
     va_list arglist;
     va_start( arglist, format );
-    vsnprintf_P(_packetBuffer,100, reinterpret_cast<const char*>(format), arglist);
+    vsnprintf_P(_packetBuffer,200, reinterpret_cast<const char*>(format), arglist);
     va_end( arglist );
     logString(_packetBuffer, true);
 }
