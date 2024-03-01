@@ -1,5 +1,5 @@
-#ifndef BASECONFIG_H
-#define BASECONFIG_H
+#ifndef MODES_BASE_H
+#define MODES_BASE_H
 #include <ArduinoJson.h>
 #include <type_traits>
 #include <concepts>
@@ -9,7 +9,7 @@
 #include "udplogger.h"
 #include "ntp_client_plus.h"
 
-namespace config
+namespace modes
 {
 
     template <typename TModeType>
@@ -38,7 +38,7 @@ namespace config
         virtual void init(TModeType &modeConfig, Env& env, const BaseConfig *old)
         {
         }
-        virtual void toJson(const TModeType &modeConfig, Env& env, JsonObject doc)
+        virtual void toJson(const TModeType &modeConfig, Env& env, JsonObject data, JsonObject config)
         {
         }
         virtual void fromJson(TModeType &modeConfig, Env& env,JsonObjectConst doc)
@@ -62,8 +62,8 @@ namespace config
     };
 
     void baseConfigInit(BaseConfig &config, Env& env,const BaseConfig *old, const char *defaultName);
-    void baseConfigToJson(const BaseConfig &config, Env& env,JsonObject current);
-    void baseConfigFromJson(BaseConfig &config, Env& env,JsonObjectConst doc);
+    void baseConfigToJson(const BaseConfig &baseConfig, Env& env, JsonObject data, JsonObject config);
+    void baseConfigFromJson(BaseConfig &config, Env& env,JsonObjectConst data);
 
     struct Empty;
 
@@ -97,7 +97,9 @@ namespace config
         return std::visit(Overload{[doc,&env](Args &mt)
                                    {
                                        doc[F("type")] = Args::handler_type::TYPE;
-                                       _handler_instance<Args>::handler.toJson(mt, env, doc);
+                                        JsonObject data = doc[F("data")].to<JsonObject>();
+                                        JsonObject config = doc[F("config")].to<JsonObject>();
+                                       _handler_instance<Args>::handler.toJson(mt, env, data, config);
                                    }...},
                           para);
     }

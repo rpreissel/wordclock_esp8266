@@ -1,10 +1,8 @@
 #include <variant>
 #include <tuple>
 #include <EEPROM.h> //from ESP8266 Arduino Core (automatically installed when ESP8266 was installed via Boardmanager)
-#include "state.h"
+#include "engine.h"
 #include "tools.h"
-#include "timedef.h"
-#include "baseconfig.h"
 #include "wordclock.h"
 #include "digiclock.h"
 
@@ -38,9 +36,9 @@ namespace eeprom
     };
 }
 
-namespace config
+namespace modes
 {
-    using EEPROMModeConfig = std::variant<config::Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig>;
+    using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
     
     struct Error
@@ -315,7 +313,11 @@ namespace config
                 reInit(typeCstr, init.env, init.currentMode());
             }
 
-            fromJson(init.currentMode(), init.env, doc.as<JsonObjectConst>());
+            JsonVariantConst data = doc[F("data")];
+            if(!data.isNull()) {
+                fromJson(init.currentMode(), init.env, data.as<JsonObjectConst>());
+            }
+
             activateCurrent(init);
         }
         doc.clear();
@@ -355,36 +357,11 @@ namespace config
         init.server.send(200, "application/json", message);
     }
 
-    void onTimedefsGet(Initialized &init)
-    {
-        auto config = timedef::getConfig();
-        JsonDocument json;
-        auto ja = json.to<JsonArray>();
-        for (int i = 0; i < 12; i++)
-        {
-            auto jai = ja.add<JsonArray>();
-            auto ta = config.periods[i];
-            if (ta[0])
-            {
-                jai.add(ta[0]);
-                if (ta[1])
-                {
-                    jai.add(ta[1]);
-                }
-            }
-        }
-
-        String message;
-        serializeJsonPretty(json, message);
-
-        init.server.send(200, "application/json", message);
-    }
 
     void initServerEndpoints(ESP8266WebServer &server)
     {
         on(server, "/current", HTTP_GET, onGetCurrent);
         on(server, "/current", HTTP_PATCH, onChangeCurrent);
         on(server, "/mode", HTTP_PUT,  onChangeMode);
-        on(server, "/timedefs", HTTP_GET, onTimedefsGet);
     }
 }

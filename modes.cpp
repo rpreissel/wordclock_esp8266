@@ -1,6 +1,6 @@
-#include "baseconfig.h"
+#include "modes.h"
 
-namespace config
+namespace modes
 {
     void baseConfigInit(BaseConfig &config, Env& env, const BaseConfig *old, const char *defaultName)
     {
@@ -18,11 +18,11 @@ namespace config
         }
     }
 
-    void baseConfigToJson(const BaseConfig &config, Env& env, JsonObject current)
+    void baseConfigToJson(const BaseConfig &baseconfig, Env& env, JsonObject data, JsonObject config)
     {
-        current[F("name")] = config.name;
-        current[F("color")] = config.color;
-        current[F("brightness")] = config.brightness;
+        data[F("name")] = baseconfig.name;
+        data[F("color")] = baseconfig.color;
+        data[F("brightness")] = baseconfig.brightness;
     }
 
     void baseConfigFromJson(BaseConfig &config, Env& env, JsonObjectConst doc)

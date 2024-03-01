@@ -1,11 +1,11 @@
-#ifndef DIGICLOCK_H
-#define DIGICLOCK_H
+#ifndef MODES_DIGICLOCK_H
+#define MODES_DIGICLOCK_H
 
-#include "baseconfig.h"
+#include "modes.h"
 
 namespace digiclock
 {
-    using namespace config;
+    using namespace modes;
 
     struct DigiClockConfig;
 
@@ -13,7 +13,7 @@ namespace digiclock
     {
         constexpr static const char *const TYPE = "DIGICLOCK";
         virtual void init(DigiClockConfig &modeConfig,Env& env, const BaseConfig *old) override;
-        virtual void toJson(const DigiClockConfig &modeConfig, Env& env,JsonObject doc) override;
+        virtual void toJson(const DigiClockConfig &modeConfig, Env& env, JsonObject data, JsonObject config) override;
         virtual void fromJson(DigiClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
 
         virtual uint32_t onActivate(DigiClockConfig &modeConfig, Env& env) override;

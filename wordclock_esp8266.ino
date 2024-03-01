@@ -44,7 +44,7 @@
 #include "ntp_client_plus.h"
 #include "ledmatrix.h"
 #include "tools.h"
-#include "state.h"
+#include "engine.h"
 
 // ----------------------------------------------------------------------------------
 //                                        CONSTANTS
@@ -303,7 +303,7 @@ void setup()
   logger.logFormatted(F("Time: %s"), ntp.getFormattedTime());
   logger.logFormatted(F("TimeOffset (seconds): %d"), ntp.getTimeOffset());
 
-  config::init(server, ledmatrix, logger,ntp);
+  modes::init(server, ledmatrix, logger,ntp);
 }
 
 // ----------------------------------------------------------------------------------
@@ -321,7 +321,7 @@ void loop()
   // send regularly heartbeat messages via UDP multicast
   if (millis() - lastheartbeat > PERIOD_HEARTBEAT)
   {
-    logger.logFormatted(F("Heartbeat, state: %s, FreeHeap: %d, HeapFrag: %d, MaxFreeBlock: %d"), config::currentModeDescription().c_str(), ESP.getFreeHeap(), ESP.getHeapFragmentation(),ESP.getMaxFreeBlockSize() );
+    logger.logFormatted(F("Heartbeat, state: %s, FreeHeap: %d, HeapFrag: %d, MaxFreeBlock: %d"), modes::currentModeDescription().c_str(), ESP.getFreeHeap(), ESP.getHeapFragmentation(),ESP.getMaxFreeBlockSize() );
     lastheartbeat = millis();
 
     // Check wifi status (only if no apmode)
@@ -334,7 +334,7 @@ void loop()
   }
 
   // handle mode behaviours (trigger loopCycles of different modes depending on current mode)
-  config::loop(millis());
+  modes::loop(millis());
 
   // periodically write colors to matrix
   if (millis() - lastAnimationStep > PERIOD_MATRIXUPDATE)

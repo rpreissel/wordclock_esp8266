@@ -2,11 +2,9 @@
 
 namespace digiclock
 {
-    using namespace config;
-
-    void DigiClockHandler::toJson(const DigiClockConfig &config, Env &env, JsonObject current)
+    void DigiClockHandler::toJson(const DigiClockConfig &clock, Env &env, JsonObject data, JsonObject config)
     {
-        baseConfigToJson(config, env, current);
+        baseConfigToJson(clock, env, data, config);
     }
 
     void DigiClockHandler::fromJson(DigiClockConfig &config, Env &env, JsonObjectConst current)

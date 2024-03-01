@@ -1,14 +1,11 @@
-#ifndef WORDCLOCK_H
-#define WORDCLOCK_H
+#ifndef MODES_WORDCLOCK_H
+#define MODES_WORDCLOCK_H
 
-#include <tuple>
-#include "ledmatrix.h"
-#include "udplogger.h"
-#include "baseconfig.h"
+#include "modes.h"
 
 namespace wordclock
 {
-    using namespace config;
+    using namespace modes;
 
     struct WordClockConfig;
 
@@ -16,7 +13,7 @@ namespace wordclock
     {
         constexpr static const char *const TYPE = "WORDCLOCK";
         virtual void init(WordClockConfig &modeConfig,Env& env, const BaseConfig *old) override;
-        virtual void toJson(const WordClockConfig &modeConfig,Env& env, JsonObject doc) override;
+        virtual void toJson(const WordClockConfig &modeConfig,Env& env, JsonObject data, JsonObject config) override;
         virtual void fromJson(WordClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
         virtual uint32_t onActivate(WordClockConfig &modeConfig, Env& env) override;
         virtual uint32_t onLoop(WordClockConfig &modeConfig, Env& env, unsigned long millis) override;
