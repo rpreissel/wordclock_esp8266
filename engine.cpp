@@ -8,16 +8,16 @@
 
 namespace eeprom
 {
-    constexpr uint8_t MODE_COUNT = 8;
-    constexpr uint8_t INIT_MARKER = 0x42;
+    constexpr uint8_t MODE_COUNT = 16;
+    constexpr uint8_t CONFIG_COUNT = 64;
+    constexpr uint8_t INIT_MARKER = 0x43;
 
     struct ModeConfig
     {
-        // 4 bits for type + config data
+        // 4 bits for type + config data count
         // 0001 = wordclock
         // 0010 = digiclock
         uint8_t type = 0b0;
-        uint64_t config[2] = {0, 0};
         // 8bit red, 8bit green, 8bit blue, 8 bit brightness
         uint32_t color = 0;
 
@@ -28,11 +28,9 @@ namespace eeprom
     {
 
         uint8_t initMarker;
-
-        // 0000 = fix mode / 4 bits for startstate
-        // 0001 = auto mode
         uint8_t startMode = 0;
         ModeConfig modes[MODE_COUNT];
+        uint64_t configs[CONFIG_COUNT];
     };
 }
 
@@ -173,20 +171,25 @@ namespace modes
             {
                 auto &mode = init.eepromConfig.modes[i];
                 mode.type = 0;
-                mode.config[0] = 0;
-                mode.config[1] = 0;
                 mode.color = 0;
                 mode.name[0] = 0;
             }
+            for (int i = 0; i < eeprom::CONFIG_COUNT; i++)
+            {
+                init.eepromConfig.configs[i] = 0;
+            }
+
             init.eepromConfig.startMode = 0;
         }
         else
         {
+            uint8_t nextConfig = 0;
             for (int i = 0; i < eeprom::MODE_COUNT; i++)
             {
                 const auto &eeprommode = init.eepromConfig.modes[i];
                 auto &mode = init.modes[i];
                 auto type = eeprommode.type && 0b1111;
+                auto usedConfigs = (eeprommode.type >> 4);
                 reInit(type, init.env, mode);
                 BaseConfig *baseconfig = toBaseConfig(mode);
                 if (baseconfig)
@@ -195,7 +198,8 @@ namespace modes
                     baseconfig->brightness = eeprommode.color >> 24;
                     baseconfig->color = eeprommode.color & 0x0FFF;
                 }
-                fromConfig(mode, init.env, eeprommode.config);
+                fromConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], usedConfigs);
+                nextConfig+=usedConfigs;
             }
 
             init.current_mode_index = init.eepromConfig.startMode;
@@ -208,25 +212,27 @@ namespace modes
 
     void saveToEEProm(Initialized &init)
     {
+        uint8_t nextConfig = 0;
         for (int i = 0; i < eeprom::MODE_COUNT; i++)
         {
             auto &eeprommode = init.eepromConfig.modes[i];
             auto &mode = init.modes[i];
 
-            eeprommode.type = mode.index() & 0xF;
             const BaseConfig *baseconfig = toBaseConfig(mode);
             if (baseconfig)
             {
                 eeprommode.color = (baseconfig->brightness & 0x000F) << 24 | (baseconfig->color & 0x0FFF);
                 strncpy(eeprommode.name, baseconfig->name.c_str(), 10);
             }
-            toConfig(mode, init.env, eeprommode.config);
+            uint8_t usedConfigs = toConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], eeprom::CONFIG_COUNT - nextConfig);
+            nextConfig += usedConfigs;
+            eeprommode.type = (mode.index() & 0xF) | (usedConfigs << 4);
         }
 
         init.eepromConfig.startMode = init.current_mode_index < 0 ? 0 : init.current_mode_index;
         EEPROM.put(0, init.eepromConfig);
         EEPROM.commit();
-        init.env.logger.logFormatted(F("Flash EEPROM"));
+        init.env.logger.logFormatted(F("Flash EEPROM: Used configs: %d"), nextConfig);
     }
 
     void activateCurrent(Initialized &init)

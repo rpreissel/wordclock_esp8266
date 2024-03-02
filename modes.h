@@ -38,10 +38,11 @@ namespace modes
         virtual void init(TModeType &modeConfig, Env& env, const BaseConfig *old)
         {
         }
-        virtual void toConfig(const TModeType &modeConfig, Env& env, uint64_t config[])
+        virtual uint8_t toConfig(const TModeType &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs)
         {
+            return 0;
         }
-        virtual void fromConfig(TModeType &modeConfig, Env& env, const uint64_t config[])
+        virtual void fromConfig(TModeType &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs)
         {
         }
         virtual void toJson(const TModeType &modeConfig, Env& env, JsonObject data, JsonObject config)
@@ -97,21 +98,21 @@ namespace modes
     };
    
     template <typename... Args>
-    void fromConfig(std::variant<Args...> &para, Env& env, const uint64_t config[])
+    void fromConfig(std::variant<Args...> &para, Env& env, const uint64_t config[], const uint8_t usedConfigs)
     {
-        return std::visit(Overload{[config,&env](Args &mt)
+        return std::visit(Overload{[config,usedConfigs,&env](Args &mt)
                                    {
-                                       _handler_instance<Args>::handler.fromConfig(mt, env, config);
+                                       _handler_instance<Args>::handler.fromConfig(mt, env, config, usedConfigs);
                                    }...},
                           para);
     }
 
     template <typename... Args>
-    void toConfig(std::variant<Args...> &para, Env& env, uint64_t config[])
+    uint8_t toConfig(std::variant<Args...> &para, Env& env, uint64_t config[], const uint8_t emptyConfigs)
     {
-        return std::visit(Overload{[config,&env](Args &mt)
+        return std::visit(Overload{[config,emptyConfigs,&env](Args &mt)
                                    {
-                                       _handler_instance<Args>::handler.toConfig(mt, env, config);
+                                       return _handler_instance<Args>::handler.toConfig(mt, env, config, emptyConfigs);
                                    }...},
                           para);
     }

@@ -13,8 +13,8 @@ namespace wordclock
     {
         constexpr static const char *const TYPE = "WORDCLOCK";
         virtual void init(WordClockConfig &modeConfig,Env& env, const BaseConfig *old) override;
-        virtual void toConfig(const WordClockConfig &modeConfig, Env& env, uint64_t config[]);
-        virtual void fromConfig(WordClockConfig &modeConfig, Env& env, const uint64_t config[]);
+        virtual uint8_t toConfig(const WordClockConfig &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs);
+        virtual void fromConfig(WordClockConfig &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs);
 
         virtual void toJson(const WordClockConfig &modeConfig,Env& env, JsonObject data, JsonObject config) override;
         virtual void fromJson(WordClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;

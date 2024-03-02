@@ -184,8 +184,11 @@ namespace wordclock
   int showStringOnClock(Env &env, const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color);
   void drawMinuteIndicator(Env &env, uint8_t minutes, uint32_t color);
 
-  void WordClockHandler::toConfig(const WordClockConfig &modeConfig, Env &env, uint64_t config[])
+  uint8_t WordClockHandler::toConfig(const WordClockConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
   {
+    if(emptyConfigs < 2) {
+      return 0;
+    }
     auto &config0 = config[0];
     config0 = 0;
     for (int i = 11; i >= 0; i--)
@@ -199,11 +202,20 @@ namespace wordclock
     config1 = modeConfig.fixed ? 1 : 0;
     config1 = config1 | ((modeConfig.minutes & 0xFF) << 8);
     config1 = config1 | ((modeConfig.hours & 0xFF) << 16);
+
+    return 2;
   }
-  void WordClockHandler::fromConfig(WordClockConfig &modeConfig, Env &env, const uint64_t config[])
+
+  void WordClockHandler::fromConfig(WordClockConfig &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
   {
-    auto config0 = config[0];
-    auto config1 = config[1];
+    auto config0 = 0;
+    auto config1 = 0;
+    if(usedConfigs == 2)
+    {
+      config0 = config[0];
+      config1 = config[1];
+    }
+    
     for (int i = 0; i < 12; i++)
     {
       modeConfig.config[i] = (config0 & 0b11);
