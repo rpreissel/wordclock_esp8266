@@ -321,7 +321,10 @@ void loop()
   // send regularly heartbeat messages via UDP multicast
   if (millis() - lastheartbeat > PERIOD_HEARTBEAT)
   {
-    logger.logFormatted(F("Heartbeat, state: %s, FreeHeap: %d, HeapFrag: %d, MaxFreeBlock: %d"), modes::currentModeDescription().c_str(), ESP.getFreeHeap(), ESP.getHeapFragmentation(),ESP.getMaxFreeBlockSize() );
+    static String modeDesc;
+    modeDesc.reserve(200);
+    modes::currentModeDescription(modeDesc);
+    logger.logFormatted(F("Heartbeat, state: %s, FreeHeap: %d, HeapFrag: %d, MaxFreeBlock: %d"),modeDesc.c_str(), ESP.getFreeHeap(), ESP.getHeapFragmentation(),ESP.getMaxFreeBlockSize() );
     lastheartbeat = millis();
 
     // Check wifi status (only if no apmode)

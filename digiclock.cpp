@@ -17,11 +17,10 @@ namespace digiclock
         baseConfigInit(config, env, old, TYPE);
     }
 
-    uint32_t DigiClockHandler::onActivate(DigiClockConfig &modeConfig, Env &env)
+    void DigiClockHandler::onActivate(DigiClockConfig &modeConfig, Env &env)
     {
         env.ledmatrix.gridFlush();
         env.ledmatrix.setBrightness(modeConfig.brightness);
-        return 1;
     }
 
     uint32_t DigiClockHandler::onLoop(DigiClockConfig &modeConfig, Env &env, unsigned long millis)

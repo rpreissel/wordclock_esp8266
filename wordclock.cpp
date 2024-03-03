@@ -215,7 +215,7 @@ namespace wordclock
       config0 = config[0];
       config1 = config[1];
     }
-    
+
     for (int i = 0; i < 12; i++)
     {
       modeConfig.config[i] = (config0 & 0b11);
@@ -287,11 +287,10 @@ namespace wordclock
     baseConfigInit(config, env, old, TYPE);
   }
 
-  uint32_t WordClockHandler::onActivate(WordClockConfig &modeConfig, Env &env)
+  void WordClockHandler::onActivate(WordClockConfig &modeConfig, Env &env)
   {
     env.ledmatrix.gridFlush();
     env.ledmatrix.setBrightness(modeConfig.brightness);
-    return 1;
   }
 
   uint32_t WordClockHandler::onLoop(WordClockConfig &modeConfig, Env &env, unsigned long millis)

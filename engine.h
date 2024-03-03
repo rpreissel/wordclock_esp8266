@@ -10,7 +10,7 @@
 namespace modes
 {
     void init(ESP8266WebServer &server, LEDMatrix& ledmatrix, UDPLogger &logger, NTPClientPlus &ntp);
-    String currentModeDescription();
+    void currentModeDescription(String& desc);
     void loop(unsigned long millis);
 }
 #endif

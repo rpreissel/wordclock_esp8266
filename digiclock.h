@@ -16,7 +16,7 @@ namespace digiclock
         virtual void toJson(const DigiClockConfig &modeConfig, Env& env, JsonObject data, JsonObject config) override;
         virtual void fromJson(DigiClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
 
-        virtual uint32_t onActivate(DigiClockConfig &modeConfig, Env& env) override;
+        virtual void onActivate(DigiClockConfig &modeConfig, Env& env) override;
         virtual uint32_t onLoop(DigiClockConfig &modeConfig, Env& env, unsigned long millis) override;
     };
 

@@ -24,11 +24,15 @@ namespace modes
     typename _handler_instance<TModeType>::handler_type _handler_instance<TModeType>::handler;
 
     struct BaseConfig;
+    using ActivateDelegator = std::function<void(int)>;
+    using LoopDelegator = std::function<uint32_t(unsigned long)>;
     struct Env
     {
         LEDMatrix &ledmatrix;
         UDPLogger &logger;
         NTPClientPlus &ntp;
+        ActivateDelegator activateNextMode;
+        LoopDelegator loopNextMode;
     };
     
 
@@ -51,9 +55,9 @@ namespace modes
         virtual void fromJson(TModeType &modeConfig, Env& env,JsonObjectConst doc)
         {
         }
-        virtual uint32_t onActivate(TModeType &modeConfig, Env& env)
-        {
-            return 0;
+        virtual void onActivate(TModeType &modeConfig, Env& env)
+        {        
+            env.ledmatrix.gridFlush();
         }
         virtual uint32_t onLoop(TModeType &modeConfig, Env& env, unsigned long millis)
         {
@@ -187,10 +191,11 @@ namespace modes
     }
 
     template <typename... Args>
-    uint16_t onActivate(std::variant<Args...> &para, Env& env)
+    void onActivate(std::variant<Args...> &para, Env& env)
     {
+        env.logger.logFormatted(F("OnActivate %d"), para.index());
         return std::visit(Overload{[&](Args &mt)
-                                   { return _handler_instance<Args>::handler.onActivate(mt, env); }...},
+                                   { _handler_instance<Args>::handler.onActivate(mt, env); }...},
                           para);
     }
 
