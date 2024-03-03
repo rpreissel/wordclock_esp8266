@@ -11,7 +11,7 @@ namespace eeprom
 {
     constexpr uint8_t MODE_COUNT = 16;
     constexpr uint8_t CONFIG_COUNT = 64;
-    constexpr uint8_t INIT_MARKER = 0x42;
+    constexpr uint8_t INIT_MARKER = 0x43;
 
     struct ModeConfig
     {
@@ -37,7 +37,7 @@ namespace eeprom
 
 namespace modes
 {
-    using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig>;
+    using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig, automode::IntervalModeConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
     constexpr int EMPTY_NODE_INDEX = -16;
 
@@ -232,6 +232,7 @@ namespace modes
             reInit(wordclock::WordClockHandler::TYPE, init.env, init.modes[0]);
             reInit(digiclock::DigiClockHandler::TYPE, init.env, init.modes[1]);
             reInit(automode::TimerModeHandler::TYPE, init.env, init.modes[2]);
+            reInit(automode::IntervalModeHandler::TYPE, init.env, init.modes[3]);
 
             init.eepromConfig.initMarker = eeprom::INIT_MARKER;
             for (int i = 0; i < eeprom::MODE_COUNT; i++)

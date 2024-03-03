@@ -176,4 +176,137 @@ namespace automode
     return 1000;
   }
 
+  uint8_t IntervalModeHandler::toConfig(const IntervalModeConfig &intervalMode, Env &env, uint64_t config[], const uint8_t emptyConfigs)
+  {
+    uint8_t configCount = 1 + (intervalMode.intervalCount / 4) + ((intervalMode.intervalCount % 4) ? 1 : 0);
+    if (emptyConfigs < configCount)
+    {
+      return 0;
+    }
+
+    for (int i = 0; i < configCount; i++)
+    {
+      config[i] = 0;
+    }
+
+    auto &config0 = config[0];
+    config0 = intervalMode.intervalCount;
+    for (int i = 0; i < intervalMode.intervalCount; i++)
+    {
+      auto &interval = intervalMode.intervals[i];
+      config0 |= (interval.mode & 0b11111) << (5 * i + 4);
+
+      auto &configX = config[i / 4 + 1];
+      auto pos= i % 4;
+      configX |= (interval.intervalSeconds << (pos*16));      
+    }
+
+    return configCount;
+  }
+
+  void IntervalModeHandler::fromConfig(IntervalModeConfig &intervalMode, Env &env, const uint64_t config[], const uint8_t usedConfigs)
+  {
+    auto config0 = config[0];
+    intervalMode.intervalCount = (config0 & 0xF);
+    
+    for (int i = 0; i < intervalMode.intervalCount; i++)
+    {
+      int mode = ((config0 >> (i * 5 + 4)) & 0b11111);
+      if (mode > 15)
+      {
+        mode -= 32;
+      }
+      auto configX = config[i / 4 + 1];
+      auto pos= i % 4;
+      uint16_t  seconds = (configX >> (pos*16)) & 0xFFFF;
+      intervalMode.intervals[i] = {mode, seconds};
+    }
+  }
+
+  void IntervalModeHandler::toJson(const IntervalModeConfig &intervalMode, Env &env, JsonObject data, JsonObject config)
+  {
+    baseConfigToJson(intervalMode, env, data, config);
+    
+    JsonArray intervals = data[F("intervals")].to<JsonArray>();
+    for (int i = 0; i < intervalMode.intervalCount; i++)
+    {
+      const auto &interval = intervalMode.intervals[i];
+      auto intervalJson = intervals.add<JsonObject>();
+      intervalJson[F("mode")] = interval.mode;
+      intervalJson[F("seconds")] = interval.intervalSeconds;
+    }
+  }
+
+  void IntervalModeHandler::fromJson(IntervalModeConfig &intervalMode, Env &env, JsonObjectConst doc)
+  {
+    baseConfigFromJson(intervalMode, env, doc);
+    JsonVariantConst intervalsVariant = doc[F("intervals")];
+    if (!intervalsVariant.isNull())
+    {
+      JsonArrayConst intervalsArray = intervalsVariant.as<JsonArrayConst>();
+      intervalMode.intervalCount = 0;
+      for (JsonVariantConst value : intervalsArray) 
+      {
+        auto intervalJson = value.as<JsonObjectConst>();
+        int mode = intervalJson[F("mode")];
+        uint16_t seconds = intervalJson[F("seconds")];
+        intervalMode.intervals[ intervalMode.intervalCount++] = {mode, seconds};
+      }
+      env.logger.logFormatted(F("intervals %d"),intervalMode.intervalCount);
+    }
+  }
+
+  void IntervalModeHandler::init(IntervalModeConfig &config, Env &env, const BaseConfig *old)
+  {
+    baseConfigInit(config, env, old, TYPE);
+    config.intervalCount = 2;
+    config.intervals[0] = Interval{0, 60};
+    config.intervals[1] = Interval{1, 60};
+  }
+
+  void IntervalModeHandler::onActivate(IntervalModeConfig &modeConfig, Env &env)
+  {
+    currentInterval=-1;
+    intervalEndTime=-1;
+  }
+
+  uint32_t IntervalModeHandler::onLoop(IntervalModeConfig &modeConfig, Env &env, unsigned long millis)
+  {
+    if(modeConfig.intervalCount == 0)
+    {
+      return 0;
+    }
+    if(currentInterval==-1 || millis > intervalEndTime)
+    {
+      currentInterval++;
+      if(currentInterval > modeConfig.intervalCount)
+      {
+        currentInterval = 0;
+      }
+      intervalEndTime = millis + (modeConfig.intervals[currentInterval].intervalSeconds * 1000);
+      lastModeTime = 0;
+      modeInterval = 1;
+      env.activateNextMode(modeConfig.intervals[currentInterval].mode);
+    }
+
+    if(modeInterval>0 && millis - lastModeTime > modeInterval)
+    {
+      lastModeTime = millis;
+      modeInterval = env.loopNextMode(millis);
+    }
+
+    int millisToIntervalEnd = intervalEndTime - millis;
+    if(millisToIntervalEnd <=0) 
+    {
+      return 1;
+    }
+
+    if(modeInterval <=0 || modeInterval > millisToIntervalEnd)
+    {
+      return millisToIntervalEnd;
+    }
+
+    return modeInterval;
+  }
+
 }
