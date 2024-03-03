@@ -186,7 +186,7 @@ namespace wordclock
 
   uint8_t WordClockHandler::toConfig(const WordClockConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
   {
-    if(emptyConfigs < 2) {
+    if(emptyConfigs < 1) {
       return 0;
     }
     auto &config0 = config[0];
@@ -197,23 +197,15 @@ namespace wordclock
       config0 = config0 | (modeConfig.config[i] & 0b11);
     }
 
-    auto &config1 = config[1];
-    config1 = 0;
-    config1 = modeConfig.fixed ? 1 : 0;
-    config1 = config1 | ((modeConfig.minutes & 0xFF) << 8);
-    config1 = config1 | ((modeConfig.hours & 0xFF) << 16);
-
-    return 2;
+    return 1;
   }
 
   void WordClockHandler::fromConfig(WordClockConfig &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
   {
     auto config0 = 0;
-    auto config1 = 0;
-    if(usedConfigs == 2)
+    if(usedConfigs == 1)
     {
       config0 = config[0];
-      config1 = config[1];
     }
 
     for (int i = 0; i < 12; i++)
@@ -221,10 +213,6 @@ namespace wordclock
       modeConfig.config[i] = (config0 & 0b11);
       config0 = config0 >> 2;
     }
-
-    modeConfig.fixed = config1 & 0xFF;
-    modeConfig.minutes = (config1 >> 8) & 0xFF;
-    modeConfig.hours = (config1 >> 16) & 0xFF;
   }
 
   void WordClockHandler::toJson(const WordClockConfig &clock, Env &env, JsonObject data, JsonObject config)
@@ -248,9 +236,6 @@ namespace wordclock
         }
       }
     }
-    data[F("fixed")] = clock.fixed;
-    data[F("hours")] = clock.hours;
-    data[F("minutes")] = clock.minutes;
   }
 
   void WordClockHandler::fromJson(WordClockConfig &config, Env &env, JsonObjectConst doc)
@@ -264,21 +249,6 @@ namespace wordclock
       {
         config.config[i] = ar[i];
       }
-    }
-    JsonVariantConst fixed = doc[F("fixed")];
-    if (!fixed.isNull())
-    {
-      config.fixed = fixed.as<bool>();
-    }
-    JsonVariantConst hours = doc[F("hours")];
-    if (!hours.isNull())
-    {
-      config.hours = hours.as<uint8_t>();
-    }
-    JsonVariantConst minutes = doc[F("minutes")];
-    if (!minutes.isNull())
-    {
-      config.minutes = minutes.as<uint8_t>();
     }
   }
 
@@ -296,14 +266,7 @@ namespace wordclock
   uint32_t WordClockHandler::onLoop(WordClockConfig &modeConfig, Env &env, unsigned long millis)
   {
     env.ledmatrix.gridFlush();
-    if (modeConfig.fixed)
-    {
-      show(env, modeConfig.config, modeConfig.hours, modeConfig.minutes, modeConfig.color);
-    }
-    else
-    {
-      show(env, modeConfig.config, env.ntp.getHours12(), env.ntp.getMinutes(), modeConfig.color);
-    }
+    show(env, modeConfig.config, env.hours(), env.minutes(), modeConfig.color);
     return 500;
   }
 

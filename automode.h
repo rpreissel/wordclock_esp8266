@@ -33,12 +33,13 @@ namespace automode
         uint16_t endMinute;
     };
 
+    constexpr uint8_t MAX_TIMER_COUNT = 10;
     struct TimerModeConfig : BaseConfig
     {
         using handler_type = TimerModeHandler;
-        uint8_t mainMode = 0;
+        int mainMode = 0;
         uint8_t timerCount = 0;
-        Timer timers[15];
+        Timer timers[MAX_TIMER_COUNT];
     };
 
 }

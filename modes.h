@@ -26,40 +26,93 @@ namespace modes
     struct BaseConfig;
     using ActivateDelegator = std::function<void(int)>;
     using LoopDelegator = std::function<uint32_t(unsigned long)>;
-    struct Env
+    class Env
     {
+    private:
+        NTPClientPlus &ntp;
+        bool _fixedTime;
+        uint8_t _fixedHours;
+        uint8_t _fixedMinutes;
+
+    public:
         LEDMatrix &ledmatrix;
         UDPLogger &logger;
-        NTPClientPlus &ntp;
         ActivateDelegator activateNextMode;
         LoopDelegator loopNextMode;
+
+        Env(LEDMatrix &ledmatrix,
+            UDPLogger &logger,
+            NTPClientPlus &ntp,
+            ActivateDelegator activateNextMode,
+            LoopDelegator loopNextMode)
+            : ledmatrix(ledmatrix), 
+            logger(logger), 
+            ntp(ntp), 
+            activateNextMode(activateNextMode), 
+            loopNextMode(loopNextMode) {}
+
+        bool fixedTime()
+        {
+            return _fixedTime;
+        }
+        uint8_t fixedHours()
+        {
+            return _fixedHours;
+        }
+        uint8_t fixedMinutes()
+        {
+            return _fixedMinutes;
+        }
+        uint8_t minutes()
+        {
+            return _fixedTime ? _fixedMinutes : ntp.getMinutes();
+        }
+        uint8_t hours()
+        {
+            return _fixedTime ? _fixedHours : ntp.getHours24();
+        }
+        uint16_t dayMinutes()
+        {
+            return hours() * 60 + minutes();
+        }
+        void fixedTime(bool fixed)
+        {
+            _fixedTime = fixed;
+        }
+        void fixedHours(uint8_t hours)
+        {
+            _fixedHours = hours;
+        }
+        void fixedMinutes(uint8_t minutes)
+        {
+            _fixedMinutes = minutes;
+        }
     };
-    
 
     template <typename TModeType>
     struct ModeTypeHandler
     {
-        virtual void init(TModeType &modeConfig, Env& env, const BaseConfig *old)
+        virtual void init(TModeType &modeConfig, Env &env, const BaseConfig *old)
         {
         }
-        virtual uint8_t toConfig(const TModeType &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs)
+        virtual uint8_t toConfig(const TModeType &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
         {
             return 0;
         }
-        virtual void fromConfig(TModeType &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs)
+        virtual void fromConfig(TModeType &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
         {
         }
-        virtual void toJson(const TModeType &modeConfig, Env& env, JsonObject data, JsonObject config)
+        virtual void toJson(const TModeType &modeConfig, Env &env, JsonObject data, JsonObject config)
         {
         }
-        virtual void fromJson(TModeType &modeConfig, Env& env,JsonObjectConst doc)
+        virtual void fromJson(TModeType &modeConfig, Env &env, JsonObjectConst doc)
         {
         }
-        virtual void onActivate(TModeType &modeConfig, Env& env)
-        {        
+        virtual void onActivate(TModeType &modeConfig, Env &env)
+        {
             env.ledmatrix.gridFlush();
         }
-        virtual uint32_t onLoop(TModeType &modeConfig, Env& env, unsigned long millis)
+        virtual uint32_t onLoop(TModeType &modeConfig, Env &env, unsigned long millis)
         {
             return 0;
         }
@@ -72,9 +125,9 @@ namespace modes
         String name;
     };
 
-    void baseConfigInit(BaseConfig &config, Env& env,const BaseConfig *old, const char *defaultName);
-    void baseConfigToJson(const BaseConfig &baseConfig, Env& env, JsonObject data, JsonObject config);
-    void baseConfigFromJson(BaseConfig &config, Env& env,JsonObjectConst data);
+    void baseConfigInit(BaseConfig &config, Env &env, const BaseConfig *old, const char *defaultName);
+    void baseConfigToJson(const BaseConfig &baseConfig, Env &env, JsonObject data, JsonObject config);
+    void baseConfigFromJson(BaseConfig &config, Env &env, JsonObjectConst data);
 
     struct Empty;
 
@@ -100,11 +153,11 @@ namespace modes
         using handler_type = OffTypeHandler;
         constexpr static int MODE_OFF_INDEX = -1;
     };
-   
+
     template <typename... Args>
-    void fromConfig(std::variant<Args...> &para, Env& env, const uint64_t config[], const uint8_t usedConfigs)
+    void fromConfig(std::variant<Args...> &para, Env &env, const uint64_t config[], const uint8_t usedConfigs)
     {
-        return std::visit(Overload{[config,usedConfigs,&env](Args &mt)
+        return std::visit(Overload{[config, usedConfigs, &env](Args &mt)
                                    {
                                        _handler_instance<Args>::handler.fromConfig(mt, env, config, usedConfigs);
                                    }...},
@@ -112,9 +165,9 @@ namespace modes
     }
 
     template <typename... Args>
-    uint8_t toConfig(std::variant<Args...> &para, Env& env, uint64_t config[], const uint8_t emptyConfigs)
+    uint8_t toConfig(std::variant<Args...> &para, Env &env, uint64_t config[], const uint8_t emptyConfigs)
     {
-        return std::visit(Overload{[config,emptyConfigs,&env](Args &mt)
+        return std::visit(Overload{[config, emptyConfigs, &env](Args &mt)
                                    {
                                        return _handler_instance<Args>::handler.toConfig(mt, env, config, emptyConfigs);
                                    }...},
@@ -122,23 +175,23 @@ namespace modes
     }
 
     template <typename... Args>
-    void toJson(std::variant<Args...> &para, Env& env, int index, JsonObject doc)
+    void toJson(std::variant<Args...> &para, Env &env, int index, JsonObject doc)
     {
         doc[F("index")] = index;
-        return std::visit(Overload{[doc,&env](Args &mt)
+        return std::visit(Overload{[doc, &env](Args &mt)
                                    {
                                        doc[F("type")] = Args::handler_type::TYPE;
-                                        JsonObject data = doc[F("data")].to<JsonObject>();
-                                        JsonObject config = doc[F("config")].to<JsonObject>();
+                                       JsonObject data = doc[F("data")].to<JsonObject>();
+                                       JsonObject config = doc[F("config")].to<JsonObject>();
                                        _handler_instance<Args>::handler.toJson(mt, env, data, config);
                                    }...},
                           para);
-    }    
+    }
 
     template <typename... Args>
-    void fromJson(std::variant<Args...> &para, Env& env, JsonObjectConst doc)
+    void fromJson(std::variant<Args...> &para, Env &env, JsonObjectConst doc)
     {
-        return std::visit(Overload{[doc,&env](Args &mt)
+        return std::visit(Overload{[doc, &env](Args &mt)
                                    { _handler_instance<Args>::handler.fromJson(mt, env, doc); }...},
                           para);
     }
@@ -191,7 +244,7 @@ namespace modes
     }
 
     template <typename... Args>
-    void onActivate(std::variant<Args...> &para, Env& env)
+    void onActivate(std::variant<Args...> &para, Env &env)
     {
         env.logger.logFormatted(F("OnActivate %d"), para.index());
         return std::visit(Overload{[&](Args &mt)
@@ -200,10 +253,10 @@ namespace modes
     }
 
     template <typename... Args>
-    uint16_t onLoop(std::variant<Args...> &para, Env& env, unsigned long millis)
+    uint16_t onLoop(std::variant<Args...> &para, Env &env, unsigned long millis)
     {
         return std::visit(Overload{[&](Args &mt)
-                                   { return _handler_instance<Args>::handler.onLoop(mt, env , millis); }...},
+                                   { return _handler_instance<Args>::handler.onLoop(mt, env, millis); }...},
                           para);
     }
 }

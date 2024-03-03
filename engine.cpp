@@ -39,6 +39,7 @@ namespace modes
 {
     using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
+    constexpr int EMPTY_NODE_INDEX = -16;
 
     struct Error
     {
@@ -56,7 +57,6 @@ namespace modes
         unsigned long lastAnimationStep;
         uint32_t animationTime;
 
-
         ModeConfig &mode(int index)
         {
             static ModeConfig offConfig = OffConfig();
@@ -68,59 +68,59 @@ namespace modes
         }
 
         ModeConfig &currentMode()
-        {            
+        {
             return mode(activatedModeIndexes[0]);
         }
 
         void activateMode(int index)
         {
-            if(activationLevel >= eeprom::MODE_COUNT)
+            if (activationLevel >= eeprom::MODE_COUNT)
             {
                 env.logger.logFormatted(F("Too many recursions (%d)"), index);
                 return;
             }
-            activatedModeIndexes[activationLevel]=index;
-            env.logger.logFormatted(F("Activate Mode (%d/%d)"),activationLevel, index);
+            activatedModeIndexes[activationLevel] = index;
+            env.logger.logFormatted(F("Activate Mode (%d/%d)"), activationLevel, index);
             activationLevel++;
             for (uint8_t i = activationLevel; i < eeprom::MODE_COUNT; i++)
             {
-                activatedModeIndexes[i] = -1;
+                activatedModeIndexes[i] = EMPTY_NODE_INDEX;
             }
-            
+
             onActivate(mode(index), env);
             activationLevel--;
         }
 
         uint32_t loopNextMode(unsigned long millis)
-        {    
-            if(activationLevel >= eeprom::MODE_COUNT)
+        {
+            if (activationLevel >= eeprom::MODE_COUNT)
             {
                 env.logger.logFormatted(F("Too many recursions (%d)"), index);
                 return 0;
-            }        
+            }
             auto result = onLoop(mode(activatedModeIndexes[activationLevel++]), env, millis);
             activationLevel--;
             return result;
         }
 
         Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
-            : server(server), 
-            activatedModeIndexes{-1},
-            env{
-                ledmatrix, 
-                logger, 
-                ntp,
-                [this](uint8_t index){activateMode(index);},
-                [this](unsigned long millis){
-                    return loopNextMode(millis);
-                }
-                } {}
-
+            : server(server),
+              activatedModeIndexes{EMPTY_NODE_INDEX},
+              env{
+                  ledmatrix,
+                  logger,
+                  ntp,
+                  [this](int index)
+                  { activateMode(index); },
+                  [this](unsigned long millis)
+                  {
+                      return loopNextMode(millis);
+                  }} {}
     };
 
     std::variant<std::monostate, Initialized, Error> moduleState;
 
-    void currentModeDescription(String& desc)
+    void currentModeDescription(String &desc)
     {
         desc.clear();
         return std::visit(
@@ -129,16 +129,16 @@ namespace modes
                 {
                     for (size_t i = 0; i < eeprom::MODE_COUNT; i++)
                     {
-                        if(init.activatedModeIndexes[i]>=0) 
+                        if (init.activatedModeIndexes[i] != EMPTY_NODE_INDEX)
                         {
-                            if(i)
+                            if (i)
                             {
                                 desc.concat(F(" / "));
                             }
 
-                            desc.concat(modeName(init.modes[init.activatedModeIndexes[i]]));
+                            desc.concat(modeName(init.mode(init.activatedModeIndexes[i])));
                         }
-                        else 
+                        else
                         {
                             break;
                         }
@@ -246,7 +246,7 @@ namespace modes
                 init.eepromConfig.configs[i] = 0;
             }
 
-            init.eepromConfig.startMode = 0;            
+            init.eepromConfig.startMode = 0;
         }
         else
         {
@@ -266,10 +266,10 @@ namespace modes
                     baseconfig->color = eeprommode.color & 0x0FFF;
                 }
                 fromConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], usedConfigs);
-                nextConfig+=usedConfigs;
+                nextConfig += usedConfigs;
             }
 
-            if(init.modes[init.eepromConfig.startMode].index())
+            if (init.modes[init.eepromConfig.startMode].index())
             {
                 return init.eepromConfig.startMode;
             }
@@ -348,6 +348,10 @@ namespace modes
         JsonDocument json;
         JsonObject current = json["current"].to<JsonObject>();
         toJson(init.currentMode(), init.env, init.activatedModeIndexes[0], current);
+        JsonObject time = json["fixedTime"].to<JsonObject>();
+        time[F("enabled")] = init.env.fixedTime();
+        time[F("hours")] = init.env.fixedHours();
+        time[F("minutes")] = init.env.fixedMinutes();
 
         auto modes = json["modes"].to<JsonArray>();
         for (int i = 0; i < eeprom::MODE_COUNT; i++)
@@ -380,6 +384,14 @@ namespace modes
             return;
         }
 
+        JsonVariantConst fixedTimeVariant = doc[F("fixedTime")];
+        if (!fixedTimeVariant.isNull())
+        {
+            JsonObjectConst fixedTimeJson = fixedTimeVariant.as<JsonObjectConst>();
+            init.env.fixedTime(fixedTimeJson[F("enabled")]);
+            init.env.fixedHours(fixedTimeJson[F("hours")]);
+            init.env.fixedMinutes(fixedTimeJson[F("minutes")]);
+        }
         int currentModeIndex = init.activatedModeIndexes[0];
         if (currentModeIndex >= 0)
         {
@@ -412,7 +424,12 @@ namespace modes
 
     void onChangeMode(Initialized &init)
     {
-        init.env.logger.logFormatted(F("On Change Mode (%d)"), init.activatedModeIndexes);
+        init.env.logger.logFormatted(F("On Change Mode before (%d,%d,%d,%d)")
+        , init.activatedModeIndexes[0]
+        , init.activatedModeIndexes[1]
+        , init.activatedModeIndexes[2]
+        , init.activatedModeIndexes[3]
+        );
         auto text = init.server.arg("plain");
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, text);

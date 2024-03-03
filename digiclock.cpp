@@ -26,8 +26,8 @@ namespace digiclock
     uint32_t DigiClockHandler::onLoop(DigiClockConfig &modeConfig, Env &env, unsigned long millis)
     {
         env.ledmatrix.gridFlush();
-        auto hours = env.ntp.getHours24();
-        auto minutes = env.ntp.getMinutes();
+        auto hours = env.hours();
+        auto minutes = env.minutes();
 
         uint8_t fstDigitH = hours / 10;
         uint8_t sndDigitH = hours % 10;
