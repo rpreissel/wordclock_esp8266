@@ -40,6 +40,43 @@ namespace modes
     using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig, automode::IntervalModeConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
     constexpr int EMPTY_NODE_INDEX = -16;
+    
+    template <typename... Args>
+    String modeType(const std::variant<Args...> &para)
+    {
+        return std::visit(Overload{[](const Args &mt)
+                                   { return String(Args::handler_type::TYPE); }...},
+                          para);
+    }
+
+    template <typename... Args>
+    String modeName(const std::variant<Args...> &para)
+    {
+        String type = modeType(para);
+        const BaseConfig *baseConfig = toBaseConfig(para);
+        if (baseConfig)
+        {
+            return baseConfig->name + F(" (") + type + F(")");
+        }
+        return type;
+    }
+
+    template <typename... Args>
+    void onActivate(std::variant<Args...> &para, Env &env)
+    {
+        env.logger.logFormatted(F("OnActivate %d"), para.index());
+        return std::visit(Overload{[&](Args &mt)
+                                   { _handler_instance<Args>::handler.onActivate(mt, env); }...},
+                          para);
+    }
+
+    template <typename... Args>
+    uint16_t onLoop(std::variant<Args...> &para, Env &env, unsigned long millis)
+    {
+        return std::visit(Overload{[&](Args &mt)
+                                   { return _handler_instance<Args>::handler.onLoop(mt, env, millis); }...},
+                          para);
+    }
 
     struct Error
     {
@@ -155,6 +192,53 @@ namespace modes
     void initServerEndpoints(ESP8266WebServer &server);
     void activateRootMode(Initialized &init, int index);
 
+template <typename... Args>
+    const BaseConfig *toBaseConfig(const std::variant<Args...> &para)
+    {
+        return std::visit(Overload{[](const Args &mt) -> const BaseConfig *
+                                   {
+                                       if constexpr (std::is_base_of<BaseConfig, Args>())
+                                       {
+                                           return &mt;
+                                       }
+                                       return nullptr;
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    BaseConfig *toBaseConfig(std::variant<Args...> &para)
+    {
+        return std::visit(Overload{[](Args &mt) -> BaseConfig *
+                                   {
+                                       if constexpr (std::is_base_of<BaseConfig, Args>())
+                                       {
+                                           return &mt;
+                                       }
+                                       return nullptr;
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    void fromConfig(std::variant<Args...> &para, Env &env, const uint64_t config[], const uint8_t usedConfigs)
+    {
+        return std::visit(Overload{[config, usedConfigs, &env](Args &mt)
+                                   {
+                                       _handler_instance<Args>::handler.fromConfig(mt, env, config, usedConfigs);
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    uint8_t toConfig(std::variant<Args...> &para, Env &env, uint64_t config[], const uint8_t emptyConfigs)
+    {
+        return std::visit(Overload{[config, emptyConfigs, &env](Args &mt)
+                                   {
+                                       return _handler_instance<Args>::handler.toConfig(mt, env, config, emptyConfigs);
+                                   }...},
+                          para);
+    }
     template <std::size_t I>
     void reInit(ModeConfig &current, Env &env)
     {
@@ -162,16 +246,17 @@ namespace modes
         auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
         current = newMode;
         BaseConfig *newBaseConfig = toBaseConfig(current);
-        if(oldBaseConfig && newBaseConfig)
+        if (oldBaseConfig && newBaseConfig)
         {
             newBaseConfig->name = oldBaseConfig->name;
             newBaseConfig->color = oldBaseConfig->color;
             newBaseConfig->brightness = oldBaseConfig->brightness;
-        } else if (newBaseConfig)
+        }
+        else if (newBaseConfig)
         {
             newBaseConfig->name = modeType(current);
             newBaseConfig->color = 0xfff;
-            newBaseConfig->brightness = 50;            
+            newBaseConfig->brightness = 50;
         }
 
         _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env);
@@ -356,6 +441,30 @@ namespace modes
                         moduleState); });
     }
 
+    
+
+    template <typename... Args>
+    void toJson(std::variant<Args...> &para, Env &env, int index, JsonObject doc)
+    {
+        doc[F("index")] = index;
+        JsonObject data = doc[F("data")].to<JsonObject>();
+        JsonObject config = doc[F("config")].to<JsonObject>();
+        BaseConfig *baseConfig = toBaseConfig(para);
+        if (baseConfig)
+        {
+            data[F("name")] = baseConfig->name;
+            data[F("color")] = baseConfig->color;
+            data[F("brightness")] = baseConfig->brightness;
+        }
+
+        return std::visit(Overload{[doc, data, config, &env](Args &mt)
+                                   {
+                                       doc[F("type")] = Args::handler_type::TYPE;
+                                       _handler_instance<Args>::handler.toJson(mt, env, data, config);
+                                   }...},
+                          para);
+    }
+
     void onGetCurrent(Initialized &init)
     {
         init.env.logger.logFormatted(F("On Get (%d)"), init.activatedModeIndexes);
@@ -384,6 +493,34 @@ namespace modes
 
         init.server.send(200, "application/json", message);
     }
+
+template <typename... Args>
+    void fromJson(std::variant<Args...> &para, Env &env, JsonObjectConst data)
+    {
+        BaseConfig *baseConfig = toBaseConfig(para);
+        if (baseConfig)
+        {
+            JsonVariantConst brightness = data[F("brightness")];
+            if (!brightness.isNull())
+            {
+                baseConfig->brightness = brightness.as<int>();
+            }
+            JsonVariantConst color = data[F("color")];
+            if (!color.isNull())
+            {
+                baseConfig->color = color.as<int>();
+            }
+            const char *name = data[F("name")];
+            if (name)
+            {
+                baseConfig->name = name;
+            }
+        }
+        return std::visit(Overload{[data, &env](Args &mt)
+                                   { _handler_instance<Args>::handler.fromJson(mt, env, data); }...},
+                          para);
+    }
+
 
     void onChangeCurrent(Initialized &init)
     {
@@ -438,12 +575,7 @@ namespace modes
 
     void onChangeMode(Initialized &init)
     {
-        init.env.logger.logFormatted(F("On Change Mode before (%d,%d,%d,%d)")
-        , init.activatedModeIndexes[0]
-        , init.activatedModeIndexes[1]
-        , init.activatedModeIndexes[2]
-        , init.activatedModeIndexes[3]
-        );
+        init.env.logger.logFormatted(F("On Change Mode before (%d,%d,%d,%d)"), init.activatedModeIndexes[0], init.activatedModeIndexes[1], init.activatedModeIndexes[2], init.activatedModeIndexes[3]);
         auto text = init.server.arg("plain");
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, text);
