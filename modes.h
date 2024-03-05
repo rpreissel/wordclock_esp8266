@@ -45,11 +45,11 @@ namespace modes
             NTPClientPlus &ntp,
             ActivateDelegator activateNextMode,
             LoopDelegator loopNextMode)
-            : ledmatrix(ledmatrix), 
-            logger(logger), 
-            ntp(ntp), 
-            activateNextMode(activateNextMode), 
-            loopNextMode(loopNextMode) {}
+            : ledmatrix(ledmatrix),
+              logger(logger),
+              ntp(ntp),
+              activateNextMode(activateNextMode),
+              loopNextMode(loopNextMode) {}
 
         bool fixedTime()
         {
@@ -92,7 +92,7 @@ namespace modes
     template <typename TModeType>
     struct ModeTypeHandler
     {
-        virtual void init(TModeType &modeConfig, Env &env, const BaseConfig *old)
+        virtual void init(TModeType &modeConfig, Env &env)
         {
         }
         virtual uint8_t toConfig(const TModeType &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
@@ -125,10 +125,6 @@ namespace modes
         String name;
     };
 
-    void baseConfigInit(BaseConfig &config, Env &env, const BaseConfig *old, const char *defaultName);
-    void baseConfigToJson(const BaseConfig &baseConfig, Env &env, JsonObject data, JsonObject config);
-    void baseConfigFromJson(BaseConfig &config, Env &env, JsonObjectConst data);
-
     struct Empty;
 
     struct EmptyTypeHandler : ModeTypeHandler<Empty>
@@ -153,56 +149,6 @@ namespace modes
         using handler_type = OffTypeHandler;
         constexpr static int MODE_OFF_INDEX = -1;
     };
-
-    template <typename... Args>
-    void fromConfig(std::variant<Args...> &para, Env &env, const uint64_t config[], const uint8_t usedConfigs)
-    {
-        return std::visit(Overload{[config, usedConfigs, &env](Args &mt)
-                                   {
-                                       _handler_instance<Args>::handler.fromConfig(mt, env, config, usedConfigs);
-                                   }...},
-                          para);
-    }
-
-    template <typename... Args>
-    uint8_t toConfig(std::variant<Args...> &para, Env &env, uint64_t config[], const uint8_t emptyConfigs)
-    {
-        return std::visit(Overload{[config, emptyConfigs, &env](Args &mt)
-                                   {
-                                       return _handler_instance<Args>::handler.toConfig(mt, env, config, emptyConfigs);
-                                   }...},
-                          para);
-    }
-
-    template <typename... Args>
-    void toJson(std::variant<Args...> &para, Env &env, int index, JsonObject doc)
-    {
-        doc[F("index")] = index;
-        return std::visit(Overload{[doc, &env](Args &mt)
-                                   {
-                                       doc[F("type")] = Args::handler_type::TYPE;
-                                       JsonObject data = doc[F("data")].to<JsonObject>();
-                                       JsonObject config = doc[F("config")].to<JsonObject>();
-                                       _handler_instance<Args>::handler.toJson(mt, env, data, config);
-                                   }...},
-                          para);
-    }
-
-    template <typename... Args>
-    void fromJson(std::variant<Args...> &para, Env &env, JsonObjectConst doc)
-    {
-        return std::visit(Overload{[doc, &env](Args &mt)
-                                   { _handler_instance<Args>::handler.fromJson(mt, env, doc); }...},
-                          para);
-    }
-
-    template <typename... Args>
-    String modeType(const std::variant<Args...> &para)
-    {
-        return std::visit(Overload{[](const Args &mt)
-                                   { return String(Args::handler_type::TYPE); }...},
-                          para);
-    }
 
     template <typename... Args>
     const BaseConfig *toBaseConfig(const std::variant<Args...> &para)
@@ -231,6 +177,84 @@ namespace modes
                                    }...},
                           para);
     }
+
+    template <typename... Args>
+    void fromConfig(std::variant<Args...> &para, Env &env, const uint64_t config[], const uint8_t usedConfigs)
+    {
+        return std::visit(Overload{[config, usedConfigs, &env](Args &mt)
+                                   {
+                                       _handler_instance<Args>::handler.fromConfig(mt, env, config, usedConfigs);
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    uint8_t toConfig(std::variant<Args...> &para, Env &env, uint64_t config[], const uint8_t emptyConfigs)
+    {
+        return std::visit(Overload{[config, emptyConfigs, &env](Args &mt)
+                                   {
+                                       return _handler_instance<Args>::handler.toConfig(mt, env, config, emptyConfigs);
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    void toJson(std::variant<Args...> &para, Env &env, int index, JsonObject doc)
+    {
+        doc[F("index")] = index;
+        JsonObject data = doc[F("data")].to<JsonObject>();
+        JsonObject config = doc[F("config")].to<JsonObject>();
+        BaseConfig *baseConfig = toBaseConfig(para);
+        if (baseConfig)
+        {
+            data[F("name")] = baseConfig->name;
+            data[F("color")] = baseConfig->color;
+            data[F("brightness")] = baseConfig->brightness;
+        }
+
+        return std::visit(Overload{[doc, data, config, &env](Args &mt)
+                                   {
+                                       doc[F("type")] = Args::handler_type::TYPE;
+                                       _handler_instance<Args>::handler.toJson(mt, env, data, config);
+                                   }...},
+                          para);
+    }
+
+    template <typename... Args>
+    void fromJson(std::variant<Args...> &para, Env &env, JsonObjectConst data)
+    {
+        BaseConfig *baseConfig = toBaseConfig(para);
+        if (baseConfig)
+        {
+            JsonVariantConst brightness = data[F("brightness")];
+            if (!brightness.isNull())
+            {
+                baseConfig->brightness = brightness.as<int>();
+            }
+            JsonVariantConst color = data[F("color")];
+            if (!color.isNull())
+            {
+                baseConfig->color = color.as<int>();
+            }
+            const char *name = data[F("name")];
+            if (name)
+            {
+                baseConfig->name = name;
+            }
+        }
+        return std::visit(Overload{[data, &env](Args &mt)
+                                   { _handler_instance<Args>::handler.fromJson(mt, env, data); }...},
+                          para);
+    }
+
+    template <typename... Args>
+    String modeType(const std::variant<Args...> &para)
+    {
+        return std::visit(Overload{[](const Args &mt)
+                                   { return String(Args::handler_type::TYPE); }...},
+                          para);
+    }
+
     template <typename... Args>
     String modeName(const std::variant<Args...> &para)
     {

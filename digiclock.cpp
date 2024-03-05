@@ -2,21 +2,6 @@
 
 namespace digiclock
 {
-    void DigiClockHandler::toJson(const DigiClockConfig &clock, Env &env, JsonObject data, JsonObject config)
-    {
-        baseConfigToJson(clock, env, data, config);
-    }
-
-    void DigiClockHandler::fromJson(DigiClockConfig &config, Env &env, JsonObjectConst current)
-    {
-        baseConfigFromJson(config, env, current);
-    }
-
-    void DigiClockHandler::init(DigiClockConfig &config, Env &env, const BaseConfig *old)
-    {
-        baseConfigInit(config, env, old, TYPE);
-    }
-
     void DigiClockHandler::onActivate(DigiClockConfig &modeConfig, Env &env)
     {
         env.ledmatrix.gridFlush();

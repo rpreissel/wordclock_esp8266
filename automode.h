@@ -15,7 +15,7 @@ namespace automode
         int currentMode = -1;
         int modeInterval = -1;
         unsigned long lastModeTime = 0;
-        virtual void init(TimerModeConfig &modeConfig,Env& env, const BaseConfig *old) override;
+        virtual void init(TimerModeConfig &modeConfig,Env& env) override;
         virtual uint8_t toConfig(const TimerModeConfig &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs);
         virtual void fromConfig(TimerModeConfig &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs);
 
@@ -51,7 +51,7 @@ namespace automode
         unsigned long intervalEndTime = -1;
         unsigned long lastModeTime = 0;
         int modeInterval = -1;
-        virtual void init(IntervalModeConfig &modeConfig,Env& env, const BaseConfig *old) override;
+        virtual void init(IntervalModeConfig &modeConfig,Env& env) override;
         virtual uint8_t toConfig(const IntervalModeConfig &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs);
         virtual void fromConfig(IntervalModeConfig &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs);
 

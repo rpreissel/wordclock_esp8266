@@ -79,7 +79,6 @@ namespace automode
 
   void TimerModeHandler::toJson(const TimerModeConfig &timerMode, Env &env, JsonObject data, JsonObject config)
   {
-    baseConfigToJson(timerMode, env, data, config);
     data[F("mainMode")] = timerMode.mainMode;
 
     JsonArray timers = data[F("timers")].to<JsonArray>();
@@ -99,7 +98,6 @@ namespace automode
 
   void TimerModeHandler::fromJson(TimerModeConfig &timerMode, Env &env, JsonObjectConst doc)
   {
-    baseConfigFromJson(timerMode, env, doc);
     JsonVariantConst mainMode = doc[F("mainMode")];
     if (!mainMode.isNull()) 
     {
@@ -127,9 +125,8 @@ namespace automode
     }
   }
 
-  void TimerModeHandler::init(TimerModeConfig &config, Env &env, const BaseConfig *old)
+  void TimerModeHandler::init(TimerModeConfig &config, Env &env)
   {
-    baseConfigInit(config, env, old, TYPE);
     config.timerCount = 1;
     config.timers[0] = Timer{OffConfig::MODE_OFF_INDEX, 0, 60};
   }
@@ -225,8 +222,6 @@ namespace automode
 
   void IntervalModeHandler::toJson(const IntervalModeConfig &intervalMode, Env &env, JsonObject data, JsonObject config)
   {
-    baseConfigToJson(intervalMode, env, data, config);
-    
     JsonArray intervals = data[F("intervals")].to<JsonArray>();
     for (int i = 0; i < intervalMode.intervalCount; i++)
     {
@@ -239,7 +234,6 @@ namespace automode
 
   void IntervalModeHandler::fromJson(IntervalModeConfig &intervalMode, Env &env, JsonObjectConst doc)
   {
-    baseConfigFromJson(intervalMode, env, doc);
     JsonVariantConst intervalsVariant = doc[F("intervals")];
     if (!intervalsVariant.isNull())
     {
@@ -256,9 +250,8 @@ namespace automode
     }
   }
 
-  void IntervalModeHandler::init(IntervalModeConfig &config, Env &env, const BaseConfig *old)
+  void IntervalModeHandler::init(IntervalModeConfig &config, Env &env)
   {
-    baseConfigInit(config, env, old, TYPE);
     config.intervalCount = 2;
     config.intervals[0] = Interval{0, 60};
     config.intervals[1] = Interval{1, 60};

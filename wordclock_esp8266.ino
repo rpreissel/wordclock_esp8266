@@ -31,7 +31,6 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 #include <uri/UriBraces.h>
-#include "Base64.h" // copied from https://github.com/Xander-Electronics/Base64
 #include <DNSServer.h>
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <EEPROM.h>      //from ESP8266 Arduino Core (automatically installed when ESP8266 was installed via Boardmanager)

@@ -158,10 +158,23 @@ namespace modes
     template <std::size_t I>
     void reInit(ModeConfig &current, Env &env)
     {
-        const BaseConfig *old = toBaseConfig(current);
+        BaseConfig *oldBaseConfig = toBaseConfig(current);
         auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
-        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env, old);
         current = newMode;
+        BaseConfig *newBaseConfig = toBaseConfig(current);
+        if(oldBaseConfig && newBaseConfig)
+        {
+            newBaseConfig->name = oldBaseConfig->name;
+            newBaseConfig->color = oldBaseConfig->color;
+            newBaseConfig->brightness = oldBaseConfig->brightness;
+        } else if (newBaseConfig)
+        {
+            newBaseConfig->name = modeType(current);
+            newBaseConfig->color = 0xfff;
+            newBaseConfig->brightness = 50;            
+        }
+
+        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env);
     }
 
     template <std::size_t I = 0>

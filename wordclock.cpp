@@ -217,8 +217,6 @@ namespace wordclock
 
   void WordClockHandler::toJson(const WordClockConfig &clock, Env &env, JsonObject data, JsonObject config)
   {
-    baseConfigToJson(clock, env, data, config);
-
     auto timesArray = data[F("times")].to<JsonArray>();
     auto configArray = config[F("times")].to<JsonArray>();
     for (int c = 0; c < 12; c++)
@@ -240,7 +238,6 @@ namespace wordclock
 
   void WordClockHandler::fromJson(WordClockConfig &config, Env &env, JsonObjectConst doc)
   {
-    baseConfigFromJson(config, env, doc);
     JsonVariantConst clockConfig = doc[F("config")];
     if (!clockConfig.isNull())
     {
@@ -250,11 +247,6 @@ namespace wordclock
         config.config[i] = ar[i];
       }
     }
-  }
-
-  void WordClockHandler::init(WordClockConfig &config, Env &env, const BaseConfig *old)
-  {
-    baseConfigInit(config, env, old, TYPE);
   }
 
   void WordClockHandler::onActivate(WordClockConfig &modeConfig, Env &env)
