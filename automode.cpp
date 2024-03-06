@@ -166,7 +166,7 @@ namespace automode
       modeInterval = env.loopNextMode(millis);
     }
 
-    if (modeInterval < 1000)
+    if (modeInterval > 0 && modeInterval < 1000)
     {
       return modeInterval;
     }

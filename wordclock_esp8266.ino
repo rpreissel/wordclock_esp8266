@@ -68,7 +68,7 @@
 // ports
 const unsigned int localPort = 2390;
 const unsigned int HTTPPort = 80;
-const unsigned int logMulticastPort = 8123;
+const unsigned int logMulticastPort = 8124;
 const unsigned int DNSPort = 53;
 
 // ip addresses for multicast logging

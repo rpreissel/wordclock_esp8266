@@ -8,7 +8,7 @@ import queue
 MCAST_IF_IP = '192.168.43.20'
 
 multicast_group = '230.120.10.2'
-server_address = ('', 8123)
+server_address = ('', 8124)
 
 # Create the socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

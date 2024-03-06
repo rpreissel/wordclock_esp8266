@@ -39,8 +39,8 @@ namespace modes
 {
     using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig, automode::IntervalModeConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
-    constexpr int EMPTY_NODE_INDEX = -16;
-    
+    constexpr int EMPTY_MODE_INDEX = -16;
+
     template <typename... Args>
     String modeType(const std::variant<Args...> &para)
     {
@@ -121,7 +121,7 @@ namespace modes
             activationLevel++;
             for (uint8_t i = activationLevel; i < eeprom::MODE_COUNT; i++)
             {
-                activatedModeIndexes[i] = EMPTY_NODE_INDEX;
+                activatedModeIndexes[i] = EMPTY_MODE_INDEX;
             }
 
             onActivate(mode(index), env);
@@ -142,7 +142,7 @@ namespace modes
 
         Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
             : server(server),
-              activatedModeIndexes{EMPTY_NODE_INDEX},
+              activatedModeIndexes{EMPTY_MODE_INDEX},
               env{
                   ledmatrix,
                   logger,
@@ -166,7 +166,7 @@ namespace modes
                 {
                     for (size_t i = 0; i < eeprom::MODE_COUNT; i++)
                     {
-                        if (init.activatedModeIndexes[i] != EMPTY_NODE_INDEX)
+                        if (init.activatedModeIndexes[i] != EMPTY_MODE_INDEX)
                         {
                             if (i)
                             {
@@ -192,7 +192,7 @@ namespace modes
     void initServerEndpoints(ESP8266WebServer &server);
     void activateRootMode(Initialized &init, int index);
 
-template <typename... Args>
+    template <typename... Args>
     const BaseConfig *toBaseConfig(const std::variant<Args...> &para)
     {
         return std::visit(Overload{[](const Args &mt) -> const BaseConfig *
@@ -362,7 +362,7 @@ template <typename... Args>
                 {
                     baseconfig->name = eeprommode.name;
                     baseconfig->brightness = eeprommode.color >> 24;
-                    baseconfig->color = eeprommode.color & 0x0FFF;
+                    baseconfig->color = eeprommode.color & 0x0FFFFFF;
                 }
                 fromConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], usedConfigs);
                 nextConfig += usedConfigs;
@@ -387,7 +387,7 @@ template <typename... Args>
             const BaseConfig *baseconfig = toBaseConfig(mode);
             if (baseconfig)
             {
-                eeprommode.color = (baseconfig->brightness & 0x000F) << 24 | (baseconfig->color & 0x0FFF);
+                eeprommode.color = (baseconfig->brightness & 0x00FF) << 24 | (baseconfig->color & 0x0FFFFFF);
                 strncpy(eeprommode.name, baseconfig->name.c_str(), 10);
             }
             uint8_t usedConfigs = toConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], eeprom::CONFIG_COUNT - nextConfig);
@@ -441,35 +441,55 @@ template <typename... Args>
                         moduleState); });
     }
 
-    
+    template <std::size_t I = 0>
+    void modeTypes(const char *typeNames[])
+    {
+        if constexpr (I < std::variant_size_v<ModeConfig>)
+        {
+            typeNames[I] = std::variant_alternative_t<I, ModeConfig>::handler_type::TYPE;
+            modeTypes<I + 1>(typeNames);
+        }
+    }
 
     template <typename... Args>
-    void toJson(std::variant<Args...> &para, Env &env, int index, JsonObject doc)
+    void toJson(std::variant<Args...> &para, Env &env, JsonObject current, JsonObject config)
     {
-        doc[F("index")] = index;
-        JsonObject data = doc[F("data")].to<JsonObject>();
-        JsonObject config = doc[F("config")].to<JsonObject>();
-        BaseConfig *baseConfig = toBaseConfig(para);
-        if (baseConfig)
-        {
-            data[F("name")] = baseConfig->name;
-            data[F("color")] = baseConfig->color;
-            data[F("brightness")] = baseConfig->brightness;
-        }
-
-        return std::visit(Overload{[doc, data, config, &env](Args &mt)
+        return std::visit(Overload{[&para, current, config, &env](Args &mt)
                                    {
-                                       doc[F("type")] = Args::handler_type::TYPE;
-                                       _handler_instance<Args>::handler.toJson(mt, env, data, config);
+                                       current[F("type")] = Args::handler_type::TYPE;
+                                       const char *typenames[std::variant_size_v<ModeConfig>];
+                                       modeTypes(typenames);
+                                       JsonArray types = config[F("types")].to<JsonArray>();
+                                       for (int i = 0; i < std::variant_size_v<ModeConfig>; i++)
+                                       {
+                                           types.add(typenames[i]);
+                                       }
+                                       BaseConfig *baseConfig = toBaseConfig(para);
+                                       if (baseConfig)
+                                       {
+                                           current[F("name")] = baseConfig->name;
+                                           current[F("color")] = baseConfig->color;
+                                           current[F("brightness")] = baseConfig->brightness;
+                                       }
+
+                                       _handler_instance<Args>::handler.toJson(mt, env, current, config);
                                    }...},
                           para);
+    }
+
+    void toJson(ModeConfig &para, Env &env, int index, JsonObject doc)
+    {
+        JsonObject current = doc[F("current")].to<JsonObject>();
+        JsonObject config = doc[F("config")].to<JsonObject>();
+        current[F("index")] = index;
+        toJson(para, env, current, config);
     }
 
     void onGetCurrent(Initialized &init)
     {
         init.env.logger.logFormatted(F("On Get (%d)"), init.activatedModeIndexes);
         JsonDocument json;
-        JsonObject current = json["current"].to<JsonObject>();
+        JsonObject current = json.to<JsonObject>();
         toJson(init.currentMode(), init.env, init.activatedModeIndexes[0], current);
         JsonObject time = json["fixedTime"].to<JsonObject>();
         time[F("enabled")] = init.env.fixedTime();
@@ -494,33 +514,35 @@ template <typename... Args>
         init.server.send(200, "application/json", message);
     }
 
-template <typename... Args>
+    template <typename... Args>
     void fromJson(std::variant<Args...> &para, Env &env, JsonObjectConst data)
     {
-        BaseConfig *baseConfig = toBaseConfig(para);
-        if (baseConfig)
-        {
-            JsonVariantConst brightness = data[F("brightness")];
-            if (!brightness.isNull())
-            {
-                baseConfig->brightness = brightness.as<int>();
-            }
-            JsonVariantConst color = data[F("color")];
-            if (!color.isNull())
-            {
-                baseConfig->color = color.as<int>();
-            }
-            const char *name = data[F("name")];
-            if (name)
-            {
-                baseConfig->name = name;
-            }
-        }
-        return std::visit(Overload{[data, &env](Args &mt)
-                                   { _handler_instance<Args>::handler.fromJson(mt, env, data); }...},
+        return std::visit(Overload{[&para, data, &env](Args &mt)
+                                   {
+                                       BaseConfig *baseConfig = toBaseConfig(para);
+                                       if (baseConfig)
+                                       {
+                                           JsonVariantConst brightness = data[F("brightness")];
+                                           if (!brightness.isNull())
+                                           {
+                                               baseConfig->brightness = brightness.as<int>();
+                                           }
+                                           JsonVariantConst color = data[F("color")];
+                                           if (!color.isNull())
+                                           {
+                                               baseConfig->color = color.as<int>();
+                                           }
+                                           const char *name = data[F("name")];
+                                           if (name)
+                                           {
+                                               baseConfig->name = name;
+                                           }
+                                       }
+
+                                       _handler_instance<Args>::handler.fromJson(mt, env, data);
+                                   }...},
                           para);
     }
-
 
     void onChangeCurrent(Initialized &init)
     {
@@ -546,25 +568,23 @@ template <typename... Args>
         int currentModeIndex = init.activatedModeIndexes[0];
         if (currentModeIndex >= 0)
         {
-            const char *typeCstr = doc[F("type")];
-            if (typeCstr)
+            JsonVariantConst current = doc[F("current")];
+            if (!current.isNull())
             {
-                reInit(typeCstr, init.env, init.currentMode());
-            }
-
-            JsonVariantConst data = doc[F("data")];
-            if (!data.isNull())
-            {
-                fromJson(init.currentMode(), init.env, data.as<JsonObjectConst>());
+                const char *typeCstr = current[F("type")];
+                if (typeCstr && modeType(init.currentMode()).compareTo(typeCstr) != 0)
+                {
+                    reInit(typeCstr, init.env, init.currentMode());
+                }
+                fromJson(init.currentMode(), init.env, current.as<JsonObjectConst>());
             }
 
             activateRootMode(init, currentModeIndex);
-
-            JsonVariantConst flash = doc[F("flash")];
-            if (!flash.isNull() && flash.as<bool>())
-            {
-                saveToEEProm(init);
-            }
+        }
+        JsonVariantConst flash = doc[F("flash")];
+        if (!flash.isNull() && flash.as<bool>())
+        {
+            saveToEEProm(init);
         }
         doc.clear();
         toJson(init.currentMode(), init.env, init.activatedModeIndexes[0], doc.to<JsonObject>());
