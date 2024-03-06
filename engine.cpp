@@ -255,7 +255,7 @@ namespace modes
         else if (newBaseConfig)
         {
             newBaseConfig->name = modeType(current);
-            newBaseConfig->color = 0xfff;
+            newBaseConfig->color = color((size_t)0);
             newBaseConfig->brightness = 50;
         }
 
@@ -468,7 +468,7 @@ namespace modes
                                        if (baseConfig)
                                        {
                                            current[F("name")] = baseConfig->name;
-                                           current[F("color")] = baseConfig->color;
+                                           current[F("color")] = colorName(baseConfig->color);
                                            current[F("brightness")] = baseConfig->brightness;
                                        }
 
@@ -481,6 +481,11 @@ namespace modes
     {
         JsonObject current = doc[F("current")].to<JsonObject>();
         JsonObject config = doc[F("config")].to<JsonObject>();
+        JsonObject colors = config[F("colors")].to<JsonObject>();
+        for (int i = 0; i < NUM_COLORS; i++)
+        {
+            colors[std::get<0>(COLORS[i])] = std::get<1>(COLORS[i]);
+        }
         current[F("index")] = index;
         toJson(para, env, current, config);
     }
@@ -527,10 +532,10 @@ namespace modes
                                            {
                                                baseConfig->brightness = brightness.as<int>();
                                            }
-                                           JsonVariantConst color = data[F("color")];
-                                           if (!color.isNull())
+                                           JsonVariantConst colorJson = data[F("color")];
+                                           if (!colorJson.isNull())
                                            {
-                                               baseConfig->color = color.as<int>();
+                                               baseConfig->color = color(colorJson.as<const char *>());
                                            }
                                            const char *name = data[F("name")];
                                            if (name)

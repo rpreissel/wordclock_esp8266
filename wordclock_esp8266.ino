@@ -60,10 +60,6 @@
 
 #define DEFAULT_SMOOTHING_FACTOR 0.5
 
-// number of colors in colors array
-#define NUM_COLORS 7
-
-// own datatype for state machine states
 
 // ports
 const unsigned int localPort = 2390;
@@ -109,15 +105,7 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(LEDMatrix::width, LEDMatrix::heig
                                                    NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
                                                NEO_GRB + NEO_KHZ800);
 
-// seven predefined colors24bit (green, red, yellow, purple, orange, lightgreen, blue)
-const uint32_t colors24bit[NUM_COLORS] = {
-    LEDMatrix::Color24bit(0, 255, 0),
-    LEDMatrix::Color24bit(255, 0, 0),
-    LEDMatrix::Color24bit(200, 200, 0),
-    LEDMatrix::Color24bit(255, 0, 200),
-    LEDMatrix::Color24bit(255, 128, 0),
-    LEDMatrix::Color24bit(0, 128, 0),
-    LEDMatrix::Color24bit(0, 0, 255)};
+
 
 // timestamp variables
 long lastheartbeat = millis();                             // time of last heartbeat sending
@@ -155,7 +143,7 @@ void setup()
   ledmatrix.setCurrentLimit(CURRENT_LIMIT_LED);
 
   // Turn on minutes leds (blue)
-  ledmatrix.setMinIndicator(15, colors24bit[6]);
+  ledmatrix.setMinIndicator(15, color(6));
   ledmatrix.drawOnMatrixInstant();
 
   /** Use WiFiMaanger for handling initial Wifi setup **/
@@ -202,7 +190,7 @@ void setup()
   int timeoutcounter = 0;
   while (WiFi.status() != WL_CONNECTED && timeoutcounter < 30)
   {
-    ledmatrix.setMinIndicator(15, colors24bit[6]);
+    ledmatrix.setMinIndicator(15, color(6));
     ledmatrix.drawOnMatrixInstant();
     delay(250);
     ledmatrix.setMinIndicator(15, 0);
@@ -269,7 +257,7 @@ void setup()
       for (int c = 0; c < LEDMatrix::width; c++)
       {
         matrix.fillScreen(0);
-        matrix.drawPixel(c, r, LEDMatrix::color24to16bit(colors24bit[2]));
+        matrix.drawPixel(c, r, LEDMatrix::color24to16bit(color(2)));
         matrix.show();
         delay(10);
       }
@@ -282,11 +270,11 @@ void setup()
 
     // display IP
     uint8_t address = WiFi.localIP()[3];
-    ledmatrix.printChar(1, 0, 'I', colors24bit[2]);
-    ledmatrix.printChar(5, 0, 'P', colors24bit[2]);
-    ledmatrix.printNumber(0, 6, (address / 100), colors24bit[2]);
-    ledmatrix.printNumber(4, 6, (address / 10) % 10, colors24bit[2]);
-    ledmatrix.printNumber(8, 6, address % 10, colors24bit[2]);
+    ledmatrix.printChar(1, 0, 'I', color(2));
+    ledmatrix.printChar(5, 0, 'P', color(2));
+    ledmatrix.printNumber(0, 6, (address / 100), color(2));
+    ledmatrix.printNumber(4, 6, (address / 10) % 10, color(2));
+    ledmatrix.printNumber(8, 6, address % 10, color(2));
     ledmatrix.drawOnMatrixInstant();
     delay(2000);
 
@@ -330,7 +318,7 @@ void loop()
     if (!apmode && WiFi.status() != WL_CONNECTED)
     {
       Serial.println("connection lost");
-      ledmatrix.gridAddPixel(0, 5, colors24bit[1]);
+      ledmatrix.gridAddPixel(0, 5, color(1));
       ledmatrix.drawOnMatrixInstant();
     }
   }

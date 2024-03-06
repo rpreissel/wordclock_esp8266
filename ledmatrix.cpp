@@ -299,3 +299,39 @@ uint16_t LEDMatrix::calcEstimatedLEDCurrent(uint32_t color){
 void LEDMatrix::setCurrentLimit(uint16_t mycurrentLimit){
   currentLimit = mycurrentLimit;
 }
+
+
+uint32_t color(size_t index)
+{
+    if (index >= 0 && index < NUM_COLORS)
+    {
+        return std::get<1>(COLORS[index]);
+    }
+    return std::get<1>(COLORS[0]);
+}
+
+uint32_t color(const char * name)
+{
+    for (int i = 0; i < NUM_COLORS; i++)
+    {
+        if(strcmp(name, std::get<0>(COLORS[i])) == 0)
+        {
+            return std::get<1>(COLORS[i]);
+        }
+    }
+
+    return std::get<1>(COLORS[0]);
+}
+
+const char *colorName(uint32_t color)
+{
+    for (int i = 0; i < NUM_COLORS; i++)
+    {
+        if(std::get<1>(COLORS[i]) == color)
+        {
+            return std::get<0>(COLORS[i]);
+        }
+    }
+
+    return "unknown";
+}
