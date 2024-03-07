@@ -19,8 +19,8 @@ namespace automode
         virtual uint8_t toConfig(const TimerModeConfig &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs);
         virtual void fromConfig(TimerModeConfig &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs);
 
-        virtual void toJson(const TimerModeConfig &modeConfig,Env& env, JsonObject data, JsonObject config) override;
-        virtual void fromJson(TimerModeConfig &modeConfig, Env& env,JsonObjectConst doc) override;
+        virtual void modeToJson(const TimerModeConfig &modeConfig,Env& env, JsonObject data) override;
+        virtual void modeFromJson(TimerModeConfig &modeConfig, Env& env,JsonObjectConst doc) override;
         virtual void onActivate(TimerModeConfig &modeConfig, Env& env) override;
         virtual uint32_t onLoop(TimerModeConfig &modeConfig, Env& env, unsigned long millis) override;
 
@@ -55,8 +55,8 @@ namespace automode
         virtual uint8_t toConfig(const IntervalModeConfig &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs);
         virtual void fromConfig(IntervalModeConfig &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs);
 
-        virtual void toJson(const IntervalModeConfig &modeConfig,Env& env, JsonObject data, JsonObject config) override;
-        virtual void fromJson(IntervalModeConfig &modeConfig, Env& env,JsonObjectConst doc) override;
+        virtual void modeToJson(const IntervalModeConfig &modeConfig,Env& env, JsonObject data) override;
+        virtual void modeFromJson(IntervalModeConfig &modeConfig, Env& env,JsonObjectConst doc) override;
         virtual void onActivate(IntervalModeConfig &modeConfig, Env& env) override;
         virtual uint32_t onLoop(IntervalModeConfig &modeConfig, Env& env, unsigned long millis) override;
 

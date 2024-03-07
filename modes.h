@@ -102,10 +102,13 @@ namespace modes
         virtual void fromConfig(TModeType &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
         {
         }
-        virtual void toJson(const TModeType &modeConfig, Env &env, JsonObject data, JsonObject config)
+        virtual void modeToJson(const TModeType &modeConfig, Env &env, JsonObject data)
         {
         }
-        virtual void fromJson(TModeType &modeConfig, Env &env, JsonObjectConst doc)
+        virtual void modeFromJson(TModeType &modeConfig, Env &env, JsonObjectConst doc)
+        {
+        }
+        virtual void configToJson(Env &env, JsonObject config)
         {
         }
         virtual void onActivate(TModeType &modeConfig, Env &env)

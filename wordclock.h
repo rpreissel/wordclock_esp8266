@@ -15,8 +15,9 @@ namespace wordclock
         virtual uint8_t toConfig(const WordClockConfig &modeConfig, Env& env, uint64_t config[], const uint8_t emptyConfigs);
         virtual void fromConfig(WordClockConfig &modeConfig, Env& env, const uint64_t config[], const uint8_t usedConfigs);
 
-        virtual void toJson(const WordClockConfig &modeConfig,Env& env, JsonObject data, JsonObject config) override;
-        virtual void fromJson(WordClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
+        virtual void modeToJson(const WordClockConfig &modeConfig,Env& env, JsonObject data) override;
+        virtual void modeFromJson(WordClockConfig &modeConfig, Env& env,JsonObjectConst doc) override;
+        virtual void configToJson(Env& env, JsonObject config) override;
         virtual void onActivate(WordClockConfig &modeConfig, Env& env) override;
         virtual uint32_t onLoop(WordClockConfig &modeConfig, Env& env, unsigned long millis) override;
 

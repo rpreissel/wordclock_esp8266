@@ -243,14 +243,19 @@ namespace modes
     void reInit(ModeConfig &current, Env &env)
     {
         BaseConfig *oldBaseConfig = toBaseConfig(current);
+        BaseConfig oldCopy;
+        if (oldBaseConfig)
+        {
+            oldCopy = *oldBaseConfig;
+        }
         auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
         current = newMode;
         BaseConfig *newBaseConfig = toBaseConfig(current);
         if (oldBaseConfig && newBaseConfig)
         {
-            newBaseConfig->name = oldBaseConfig->name;
-            newBaseConfig->color = oldBaseConfig->color;
-            newBaseConfig->brightness = oldBaseConfig->brightness;
+            newBaseConfig->name = oldCopy.name;
+            newBaseConfig->color = oldCopy.color;
+            newBaseConfig->brightness = oldCopy.brightness;
         }
         else if (newBaseConfig)
         {
@@ -451,19 +456,22 @@ namespace modes
         }
     }
 
-    template <typename... Args>
-    void toJson(std::variant<Args...> &para, Env &env, JsonObject current, JsonObject config)
+    template <std::size_t I = 0>
+    void modeConfigs(Env &env, JsonObject current)
     {
-        return std::visit(Overload{[&para, current, config, &env](Args &mt)
+        if constexpr (I < std::variant_size_v<ModeConfig>)
+        {
+            _handler_instance<std::variant_alternative_t<I, ModeConfig>>::handler.configToJson(env, current);
+            modeConfigs<I + 1>(env, current);
+        }
+    }
+
+    template <typename... Args>
+    void modeToJson(std::variant<Args...> &para, Env &env, JsonObject current)
+    {
+        return std::visit(Overload{[&para, current, &env](Args &mt)
                                    {
                                        current[F("type")] = Args::handler_type::TYPE;
-                                       const char *typenames[std::variant_size_v<ModeConfig>];
-                                       modeTypes(typenames);
-                                       JsonArray types = config[F("types")].to<JsonArray>();
-                                       for (int i = 0; i < std::variant_size_v<ModeConfig>; i++)
-                                       {
-                                           types.add(typenames[i]);
-                                       }
                                        BaseConfig *baseConfig = toBaseConfig(para);
                                        if (baseConfig)
                                        {
@@ -472,46 +480,58 @@ namespace modes
                                            current[F("brightness")] = baseConfig->brightness;
                                        }
 
-                                       _handler_instance<Args>::handler.toJson(mt, env, current, config);
+                                       _handler_instance<Args>::handler.modeToJson(mt, env, current);
                                    }...},
                           para);
     }
 
-    void toJson(ModeConfig &para, Env &env, int index, JsonObject doc)
+    void toJson(Initialized &init, JsonObject doc)
     {
-        JsonObject current = doc[F("current")].to<JsonObject>();
-        JsonObject config = doc[F("config")].to<JsonObject>();
+        JsonArray modes = doc[F("modes")].to<JsonArray>();
+        for (int i = 0; i < eeprom::MODE_COUNT; i++)
+        {
+            JsonObject mode = modes.add<JsonObject>();
+            mode[F("index")] = i;
+            modeToJson(init.modes[i], init.env, mode);
+        }
+        doc[F("current")] = init.activatedModeIndexes[0];
+        JsonObject time = doc["fixedTime"].to<JsonObject>();
+        time[F("enabled")] = init.env.fixedTime();
+        time[F("hours")] = init.env.fixedHours();
+        time[F("minutes")] = init.env.fixedMinutes();
+    }
+
+    void onGetConfig(Initialized &init)
+    {
+        init.env.logger.logFormatted(F("On Get (%d)"), init.activatedModeIndexes);
+        JsonDocument json;
+        JsonObject config = json.to<JsonObject>();
+        const char *typenames[std::variant_size_v<ModeConfig>];
+        modeTypes(typenames);
+        JsonArray types = config[F("types")].to<JsonArray>();
+        for (int i = 0; i < std::variant_size_v<ModeConfig>; i++)
+        {
+            types.add(typenames[i]);
+        }
         JsonObject colors = config[F("colors")].to<JsonObject>();
         for (int i = 0; i < NUM_COLORS; i++)
         {
             colors[std::get<0>(COLORS[i])] = std::get<1>(COLORS[i]);
         }
-        current[F("index")] = index;
-        toJson(para, env, current, config);
+
+        modeConfigs(init.env, config);
+        String message;
+        serializeJsonPretty(json, message);
+
+        init.server.send(200, "application/json", message);
     }
 
-    void onGetCurrent(Initialized &init)
+    void onGet(Initialized &init)
     {
         init.env.logger.logFormatted(F("On Get (%d)"), init.activatedModeIndexes);
         JsonDocument json;
         JsonObject current = json.to<JsonObject>();
-        toJson(init.currentMode(), init.env, init.activatedModeIndexes[0], current);
-        JsonObject time = json["fixedTime"].to<JsonObject>();
-        time[F("enabled")] = init.env.fixedTime();
-        time[F("hours")] = init.env.fixedHours();
-        time[F("minutes")] = init.env.fixedMinutes();
-
-        auto modes = json["modes"].to<JsonArray>();
-        for (int i = 0; i < eeprom::MODE_COUNT; i++)
-        {
-            auto mode = modes.add<JsonObject>();
-            mode[F("index")] = i;
-            mode[F("type")] = modeType(init.modes[i]);
-            if (auto baseConfig = toBaseConfig(init.modes[i]))
-            {
-                mode[F("name")] = baseConfig->name;
-            }
-        }
+        toJson(init, current);
 
         String message;
         serializeJsonPretty(json, message);
@@ -520,7 +540,7 @@ namespace modes
     }
 
     template <typename... Args>
-    void fromJson(std::variant<Args...> &para, Env &env, JsonObjectConst data)
+    void modeFromJson(std::variant<Args...> &para, Env &env, JsonObjectConst data)
     {
         return std::visit(Overload{[&para, data, &env](Args &mt)
                                    {
@@ -544,12 +564,12 @@ namespace modes
                                            }
                                        }
 
-                                       _handler_instance<Args>::handler.fromJson(mt, env, data);
+                                       _handler_instance<Args>::handler.modeFromJson(mt, env, data);
                                    }...},
                           para);
     }
 
-    void onChangeCurrent(Initialized &init)
+    void onChange(Initialized &init)
     {
         init.env.logger.logFormatted(F("On Change (%d)"), init.activatedModeIndexes);
         auto text = init.server.arg("plain");
@@ -570,56 +590,57 @@ namespace modes
             init.env.fixedHours(fixedTimeJson[F("hours")]);
             init.env.fixedMinutes(fixedTimeJson[F("minutes")]);
         }
-        int currentModeIndex = init.activatedModeIndexes[0];
-        if (currentModeIndex >= 0)
+        JsonVariantConst modesVariant = doc[F("modes")];
+        if (!modesVariant.isNull())
         {
-            JsonVariantConst current = doc[F("current")];
-            if (!current.isNull())
+            JsonArrayConst modesArray = modesVariant.as<JsonArrayConst>();
+            for (JsonVariantConst modeVariant : modesArray)
             {
-                const char *typeCstr = current[F("type")];
-                if (typeCstr && modeType(init.currentMode()).compareTo(typeCstr) != 0)
+                JsonObjectConst modeJson = modeVariant.as<JsonObjectConst>();
+                JsonVariantConst indexVariant = modeJson[F("index")];
+                if (indexVariant.isNull())
                 {
-                    reInit(typeCstr, init.env, init.currentMode());
+                    continue;
                 }
-                fromJson(init.currentMode(), init.env, current.as<JsonObjectConst>());
+                int index = indexVariant.as<int>();
+                if (index < 0 || index >= eeprom::MODE_COUNT)
+                {
+                    continue;
+                }
+                const char *typeCstr = modeJson[F("type")];
+                if (typeCstr && modeType(init.modes[index]).compareTo(typeCstr) != 0)
+                {
+                    reInit(typeCstr, init.env, init.modes[index]);
+                }
+                modeFromJson(init.modes[index], init.env, modeJson);
             }
-
-            activateRootMode(init, currentModeIndex);
         }
+
+        JsonVariantConst currentVariant = doc[F("current")];
+        if (currentVariant.isNull())
+        {
+            activateRootMode(init, init.activatedModeIndexes[0]);
+        }
+        else
+        {
+            int current = currentVariant.as<int>();
+            if (current >= 0 && current < eeprom::MODE_COUNT || current == OffConfig::MODE_OFF_INDEX)
+            {
+                activateRootMode(init, current);
+            }
+            else
+            {
+                activateRootMode(init, init.activatedModeIndexes[0]);
+            }
+        }
+
         JsonVariantConst flash = doc[F("flash")];
         if (!flash.isNull() && flash.as<bool>())
         {
             saveToEEProm(init);
         }
         doc.clear();
-        toJson(init.currentMode(), init.env, init.activatedModeIndexes[0], doc.to<JsonObject>());
-        String message;
-        serializeJsonPretty(doc, message);
-        init.server.send(200, "application/json", message);
-    }
-
-    void onChangeMode(Initialized &init)
-    {
-        init.env.logger.logFormatted(F("On Change Mode before (%d,%d,%d,%d)"), init.activatedModeIndexes[0], init.activatedModeIndexes[1], init.activatedModeIndexes[2], init.activatedModeIndexes[3]);
-        auto text = init.server.arg("plain");
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, text);
-        if (error)
-        {
-            Serial.println(F("deserializeJson() failed: "));
-            init.server.send(400, "text/plain", error.c_str());
-            return;
-        }
-
-        int mode = doc["mode"];
-        if (mode >= 0 && mode < eeprom::MODE_COUNT || mode == OffConfig::MODE_OFF_INDEX)
-        {
-            activateRootMode(init, mode);
-        }
-        saveToEEProm(init);
-
-        doc.clear();
-        toJson(init.currentMode(), init.env, init.activatedModeIndexes[0], doc.to<JsonObject>());
+        toJson(init, doc.to<JsonObject>());
         String message;
         serializeJsonPretty(doc, message);
         init.server.send(200, "application/json", message);
@@ -627,8 +648,8 @@ namespace modes
 
     void initServerEndpoints(ESP8266WebServer &server)
     {
-        on(server, "/current", HTTP_GET, onGetCurrent);
-        on(server, "/current", HTTP_PATCH, onChangeCurrent);
-        on(server, "/mode", HTTP_PUT, onChangeMode);
+        on(server, "/modes", HTTP_GET, onGet);
+        on(server, "/modes", HTTP_PATCH, onChange);
+        on(server, "/configs", HTTP_GET, onGetConfig);
     }
 }

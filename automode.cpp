@@ -77,7 +77,7 @@ namespace automode
     }
   }
 
-  void TimerModeHandler::toJson(const TimerModeConfig &timerMode, Env &env, JsonObject data, JsonObject config)
+  void TimerModeHandler::modeToJson(const TimerModeConfig &timerMode, Env &env, JsonObject data)
   {
     data[F("mainMode")] = timerMode.mainMode;
 
@@ -96,7 +96,7 @@ namespace automode
     }
   }
 
-  void TimerModeHandler::fromJson(TimerModeConfig &timerMode, Env &env, JsonObjectConst doc)
+  void TimerModeHandler::modeFromJson(TimerModeConfig &timerMode, Env &env, JsonObjectConst doc)
   {
     JsonVariantConst mainMode = doc[F("mainMode")];
     if (!mainMode.isNull()) 
@@ -220,7 +220,7 @@ namespace automode
     }
   }
 
-  void IntervalModeHandler::toJson(const IntervalModeConfig &intervalMode, Env &env, JsonObject data, JsonObject config)
+  void IntervalModeHandler::modeToJson(const IntervalModeConfig &intervalMode, Env &env, JsonObject data)
   {
     JsonArray intervals = data[F("intervals")].to<JsonArray>();
     for (int i = 0; i < intervalMode.intervalCount; i++)
@@ -232,7 +232,7 @@ namespace automode
     }
   }
 
-  void IntervalModeHandler::fromJson(IntervalModeConfig &intervalMode, Env &env, JsonObjectConst doc)
+  void IntervalModeHandler::modeFromJson(IntervalModeConfig &intervalMode, Env &env, JsonObjectConst doc)
   {
     JsonVariantConst intervalsVariant = doc[F("intervals")];
     if (!intervalsVariant.isNull())

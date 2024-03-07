@@ -215,14 +215,20 @@ namespace wordclock
     }
   }
 
-  void WordClockHandler::toJson(const WordClockConfig &clock, Env &env, JsonObject data, JsonObject config)
+  void WordClockHandler::modeToJson(const WordClockConfig &clock, Env &env, JsonObject data)
   {
     auto timesArray = data[F("times")].to<JsonArray>();
-    auto configArray = config[F("times")].to<JsonArray>();
     for (int c = 0; c < 12; c++)
     {
       timesArray.add(clock.config[c]);
+    }
+  }
 
+  void WordClockHandler::configToJson(Env &env, JsonObject config)
+  {
+    auto configArray = config[F("times")].to<JsonArray>();
+    for (int c = 0; c < 12; c++)
+    {
       auto timeArray = configArray.add<JsonArray>();
       auto ta = timedef::CONFIG.periods[c];
       if (ta[0])
@@ -236,9 +242,9 @@ namespace wordclock
     }
   }
 
-  void WordClockHandler::fromJson(WordClockConfig &config, Env &env, JsonObjectConst doc)
+  void WordClockHandler::modeFromJson(WordClockConfig &config, Env &env, JsonObjectConst doc)
   {
-    JsonVariantConst clockConfig = doc[F("config")];
+    JsonVariantConst clockConfig = doc[F("times")];
     if (!clockConfig.isNull())
     {
       JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
