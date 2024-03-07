@@ -82,7 +82,7 @@ namespace timedef
        ([](String &sentence, uint8_t hours)
         {sentence.concat(F("zehn vor halb ")) ;addHours(sentence, hours + 1); })};
   constexpr TimePeriodDef TPD_20_ZWANZIG =
-      {"zwanzig nach 10",
+      {"20 nach 10",
        ([](String &sentence, uint8_t hours)
         {sentence.concat(F("zwanzig nach ")); addHours(sentence, hours); })};
   constexpr TimePeriodDef TPD_25 =
@@ -186,7 +186,8 @@ namespace wordclock
 
   uint8_t WordClockHandler::toConfig(const WordClockConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
   {
-    if(emptyConfigs < 1) {
+    if (emptyConfigs < 1)
+    {
       return 0;
     }
     auto &config0 = config[0];
@@ -203,7 +204,7 @@ namespace wordclock
   void WordClockHandler::fromConfig(WordClockConfig &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
   {
     auto config0 = 0;
-    if(usedConfigs == 1)
+    if (usedConfigs == 1)
     {
       config0 = config[0];
     }
@@ -217,27 +218,28 @@ namespace wordclock
 
   void WordClockHandler::modeToJson(const WordClockConfig &clock, Env &env, JsonObject data)
   {
-    auto timesArray = data[F("times")].to<JsonArray>();
+    auto timesJson = data[F("times")].to<JsonObject>();
     for (int c = 0; c < 12; c++)
     {
-      timesArray.add(clock.config[c]);
+      auto ta = timedef::CONFIG.periods[c];
+      if (ta[1])
+      {
+        timesJson[String(c * 5)] = ta[clock.config[c]];
+      }
     }
   }
 
   void WordClockHandler::configToJson(Env &env, JsonObject config)
   {
-    auto configArray = config[F("times")].to<JsonArray>();
+    auto timesJson = config[F("times")].to<JsonObject>();
     for (int c = 0; c < 12; c++)
     {
-      auto timeArray = configArray.add<JsonArray>();
       auto ta = timedef::CONFIG.periods[c];
-      if (ta[0])
+      if (ta[1])
       {
+        auto timeArray = timesJson[String(c * 5)].to<JsonArray>();
         timeArray.add(ta[0]);
-        if (ta[1])
-        {
-          timeArray.add(ta[1]);
-        }
+        timeArray.add(ta[1]);
       }
     }
   }
@@ -247,10 +249,28 @@ namespace wordclock
     JsonVariantConst clockConfig = doc[F("times")];
     if (!clockConfig.isNull())
     {
-      JsonArrayConst ar = clockConfig.as<JsonArrayConst>();
+      JsonObjectConst timesJson = clockConfig.as<JsonObjectConst>();
       for (int i = 0; i < 12; i++)
       {
-        config.config[i] = ar[i];
+        auto ta = timedef::CONFIG.periods[i];
+        if (!ta[1])
+        {
+          continue;
+        }
+        JsonVariantConst timeVariant = timesJson[String(i * 5)];
+        if (timeVariant.isNull())
+        {
+          continue;
+        }
+        auto time = timeVariant.as<String>();
+        if (time.compareTo(ta[0]) == 0)
+        {
+          config.config[i] = 0;
+        }
+        else if (time.compareTo(ta[1]) == 0)
+        {
+          config.config[i] = 1;
+        }
       }
     }
   }
