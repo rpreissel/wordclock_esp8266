@@ -137,12 +137,25 @@
             "index": 14,
             "type": "EMPTY"
         },
-        {
+         {
             "index": 15,
-            "type": "EMPTY"
+            "type": "PICTURE",
+            "name": "PICTURE",
+            "color": "green",
+            "brightness": 50,
+            "pixels": {
+                "0": "       ",
+                "1": " ** ** ",
+                "2": "*******",
+                "3": " ***** ",
+                "4": "  ***  ",
+                "5": "   *   ",
+                "6": "       ",
+                "7": "       "
+            }
         }
     ],
-    "current": 6,
+    "current": 15,
     "fixedTime": {
         "enabled": false,
         "hours": 0,

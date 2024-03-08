@@ -27,7 +27,7 @@ namespace picture
     struct PictureConfig : BaseConfig
     {
         using handler_type = PictureHandler;
-        uint64_t pixels[2];
+        uint8_t pixels[8];
     };
 }
 
