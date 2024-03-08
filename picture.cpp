@@ -12,32 +12,32 @@ namespace picture
 
     uint8_t PictureHandler::toConfig(const PictureConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
     {
-        if (emptyConfigs < 1)
+        if (emptyConfigs < 3)
         {
             return 0;
         }
-        memcpy(config, modeConfig.pixels, 8);
+        memcpy(config, modeConfig.pixels, 22);
 
-        return 1;
+        return 3;
     }
 
     void PictureHandler::fromConfig(PictureConfig &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
     {
-        if (usedConfigs == 1)
+        if (usedConfigs == 3)
         {
-            memcpy(modeConfig.pixels, config, 8);
+            memcpy(modeConfig.pixels, config, 22);
         }
     }
 
     void PictureHandler::modeToJson(const PictureConfig &modeConfig, Env &env, JsonObject data)
     {
         String row;
-        row.reserve(8);
+        row.reserve(11);
         JsonObject pixelsJson = data[F("pixels")].to<JsonObject>();
-        for (int r = 0; r < 8; r++)
+        for (int r = 0; r < 11; r++)
         {
             row.clear();
-            for (int c = 0; c < 8; c++)
+            for (int c = 0; c < 11; c++)
             {
                 if (modeConfig.pixels[r] & (1 << c))
                 {
@@ -58,14 +58,14 @@ namespace picture
         if (!pixelJsonVariant.isNull()) 
         {
             auto pixelJson = pixelJsonVariant.as<JsonObjectConst>();
-            for (int r = 0; r < 8; r++)
+            for (int r = 0; r < 11; r++)
             {
                 const char* row = pixelJson[String(r)];
                 if(!row) {
                     continue;
                 }
                 modeConfig.pixels[r] = 0;
-                for (int c = 0; c < 8 && c < strlen(row); c++)
+                for (int c = 0; c < 11 && c < strlen(row); c++)
                 {
                     if (row[c] == '*')
                     {
@@ -86,13 +86,13 @@ namespace picture
     {
         env.ledmatrix.gridFlush();
 
-        for (int r = 0; r < 8; r++)
+        for (int r = 0; r < 11; r++)
         {
-            for (int c = 0; c < 8; c++)
+            for (int c = 0; c < 11; c++)
             {
                 if (modeConfig.pixels[r] & (1 << c))
                 {
-                    env.ledmatrix.gridAddPixel(c + 2, r + 2, modeConfig.color);
+                    env.ledmatrix.gridAddPixel(c, r, modeConfig.color);
                 }
             }
         }
