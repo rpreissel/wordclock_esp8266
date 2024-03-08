@@ -6,6 +6,7 @@
 #include "wordclock.h"
 #include "digiclock.h"
 #include "automode.h"
+#include "picture.h"
 
 namespace eeprom
 {
@@ -37,7 +38,7 @@ namespace eeprom
 
 namespace modes
 {
-    using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig, automode::IntervalModeConfig>;
+    using EEPROMModeConfig = std::variant<Empty, wordclock::WordClockConfig, digiclock::DigiClockConfig, automode::TimerModeConfig, automode::IntervalModeConfig, picture::PictureConfig>;
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
     constexpr int EMPTY_MODE_INDEX = -16;
 
