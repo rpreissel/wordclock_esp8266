@@ -1,0 +1,151 @@
+{
+    "modes": [
+        {
+            "index": 0,
+            "type": "WORDCLOCK",
+            "name": "WORD1",
+            "color": "orange",
+            "brightness": 50,
+            "times": {
+                "0": "10 Uhr",
+                "15": "viertel nach 10",
+                "20": "20 nach 10",
+                "40": "20 vor 11",
+                "45": "viertel vor 11"
+            }
+        },
+        {
+            "index": 1,
+            "type": "WORDCLOCK",
+            "name": "WORD2",
+            "color": "green",
+            "brightness": 50,
+            "times": {
+                "0": "um 10",
+                "15": "viertel 11",
+                "20": "10 vor halb 11",
+                "40": "10 nach halb 11",
+                "45": "dreiviertel 11"
+            }
+        },
+        {
+            "index": 2,
+            "type": "WORDCLOCK",
+            "name": "WORD3",
+            "color": "orange",
+            "brightness": 255,
+            "times": {
+                "0": "10 Uhr",
+                "15": "viertel nach 10",
+                "20": "20 nach 10",
+                "40": "20 vor 11",
+                "45": "viertel vor 11"
+            }
+        },
+        {
+            "index": 3,
+            "type": "WORDCLOCK",
+            "name": "WORD4",
+            "color": "green",
+            "brightness": 255,
+            "times": {
+                "0": "um 10",
+                "15": "viertel 11",
+                "20": "10 vor halb 11",
+                "40": "10 nach halb 11",
+                "45": "dreiviertel 11"
+            }
+        },
+        {
+            "index": 4,
+            "type": "DIGICLOCK",
+            "name": "DIGICLOCK",
+            "color": "yellow",
+            "brightness": 50
+        },
+        {
+            "index": 5,
+            "type": "INTERVAL",
+            "name": "INTERVAL",
+            "color": "green",
+            "brightness": 50,
+            "intervals": [
+                {
+                    "mode": 0,
+                    "seconds": 10
+                },
+                {
+                    "mode": 1,
+                    "seconds": 10
+                },
+                {
+                    "mode": 2,
+                    "seconds": 10
+                },
+                {
+                    "mode": 3,
+                    "seconds": 10
+                }
+            ]
+        },
+        {
+            "index": 6,
+            "type": "TIMER",
+            "name": "TIMER",
+            "color": "green",
+            "brightness": 50,
+            "mainMode": 1,
+            "timers": [
+                {
+                    "mode": 3,
+                    "startHour": 8,
+                    "startMinute": 0,
+                    "endHour": 20,
+                    "endMinute": 0
+                }
+            ]
+        },
+        {
+            "index": 7,
+            "type": "EMPTY"
+        },
+        {
+            "index": 8,
+            "type": "EMPTY"
+        },
+        {
+            "index": 9,
+            "type": "EMPTY"
+        },
+        {
+            "index": 10,
+            "type": "EMPTY"
+        },
+        {
+            "index": 11,
+            "type": "EMPTY"
+        },
+        {
+            "index": 12,
+            "type": "EMPTY"
+        },
+        {
+            "index": 13,
+            "type": "EMPTY"
+        },
+        {
+            "index": 14,
+            "type": "EMPTY"
+        },
+        {
+            "index": 15,
+            "type": "EMPTY"
+        }
+    ],
+    "current": 6,
+    "fixedTime": {
+        "enabled": false,
+        "hours": 0,
+        "minutes": 0
+    }
+}

@@ -5,7 +5,7 @@ from datetime import datetime
 import queue
 
 # ip address of network interface
-MCAST_IF_IP = '192.168.43.20'
+MCAST_IF_IP = '192.168.43.22'
 
 multicast_group = '230.120.10.2'
 server_address = ('', 8124)

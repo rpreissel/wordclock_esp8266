@@ -249,6 +249,7 @@ namespace modes
             oldCopy = *oldBaseConfig;
         }
         auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
+        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env);
         current = newMode;
         BaseConfig *newBaseConfig = toBaseConfig(current);
         if (oldBaseConfig && newBaseConfig)
@@ -264,7 +265,6 @@ namespace modes
             newBaseConfig->brightness = 50;
         }
 
-        _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env);
     }
 
     template <std::size_t I = 0>
@@ -402,8 +402,9 @@ namespace modes
 
         init.eepromConfig.startMode = init.activatedModeIndexes[0] < 0 ? 0 : init.activatedModeIndexes[0];
         EEPROM.put(0, init.eepromConfig);
-        EEPROM.commit();
-        init.env.logger.logFormatted(F("Flash EEPROM: Used configs: %d"), nextConfig);
+        bool success = EEPROM.commit();
+        init.env.logger.logFormatted(F("Flash EEPROM: Used configs: %d Success: %d Size: %d"), nextConfig, success, sizeof(init.eepromConfig));
+        loadFromEEProm(init);
     }
 
     void activateRootMode(Initialized &init, int index)
@@ -520,6 +521,7 @@ namespace modes
         }
 
         modeConfigs(init.env, config);
+        config[F("flash")] = true;
         String message;
         serializeJsonPretty(json, message);
 
@@ -610,8 +612,11 @@ namespace modes
                 const char *typeCstr = modeJson[F("type")];
                 if (typeCstr && modeType(init.modes[index]).compareTo(typeCstr) != 0)
                 {
+                    init.env.logger.logFormatted(F("before reinit %d / %d"), index,init.modes[index].index());
                     reInit(typeCstr, init.env, init.modes[index]);
+                    init.env.logger.logFormatted(F("after reinit %d / %d"), index,init.modes[index].index());
                 }
+                init.env.logger.logFormatted(F("modeFromJson %d / %d"), index,init.modes[index].index());
                 modeFromJson(init.modes[index], init.env, modeJson);
             }
         }

@@ -195,7 +195,7 @@ namespace automode
 
       auto &configX = config[i / 4 + 1];
       auto pos= i % 4;
-      configX |= (interval.intervalSeconds << (pos*16));      
+      configX |= (((uint64_t)interval.intervalSeconds) << (pos*16));      
     }
 
     return configCount;
@@ -246,12 +246,13 @@ namespace automode
         uint16_t seconds = intervalJson[F("seconds")];
         intervalMode.intervals[ intervalMode.intervalCount++] = {mode, seconds};
       }
-      env.logger.logFormatted(F("intervals %d"),intervalMode.intervalCount);
     }
+    env.logger.logFormatted(F("intervals %d"),intervalMode.intervalCount);
   }
 
   void IntervalModeHandler::init(IntervalModeConfig &config, Env &env)
   {
+    env.logger.logFormatted(F("init intervals"));
     config.intervalCount = 2;
     config.intervals[0] = Interval{0, 60};
     config.intervals[1] = Interval{1, 60};
