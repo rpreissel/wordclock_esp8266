@@ -177,8 +177,7 @@ namespace timedef
 
 namespace wordclock
 {
-  const String clockStringGerman = "espistkfunfdreiviertelzwanzigzehnuminutenullvorqkjanachhalbNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
-  String message(clockStringGerman);
+  String message(LEDMatrix::clockString);
 
   void show(Env &env, const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color);
   int showStringOnClock(Env &env, const uint8_t config[12], uint8_t hours, uint8_t minutes, uint32_t color);
@@ -360,7 +359,7 @@ namespace wordclock
       if (word.length() > 0)
       {
         // find word in clock string
-        positionOfWord = clockStringGerman.indexOf(word, lastLetterClock);
+        positionOfWord = LEDMatrix::clockString.indexOf(word, lastLetterClock);
 
         if (positionOfWord >= 0)
         {

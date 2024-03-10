@@ -30,7 +30,11 @@ public:
 
     constexpr static int width = 11;
     constexpr static int height = 11;
+    const static String clockString;
+    const static String clockStringUmlaut;
 
+    uint8_t colorIndexGrid(uint8_t x, uint8_t y);
+    uint8_t colorIndexMinIndicator(uint8_t x);
 private:
     Adafruit_NeoMatrix *neomatrix;
     UDPLogger *logger;
@@ -54,13 +58,12 @@ private:
     uint16_t calcEstimatedLEDCurrent(uint32_t color);
 };
 
-// number of colors in colors array
-#define NUM_COLORS 7
 
 using Color = std::tuple<const char *, uint32_t>;
 
 // seven predefined colors24bit (green, red, yellow, purple, orange, lightgreen, blue)
-const Color COLORS[NUM_COLORS] = {
+const Color COLORS[] = {
+    {"unknown", 0xFF000000},
     {"green", LEDMatrix::Color24bit(0, 255, 0)},
     {"red", LEDMatrix::Color24bit(255, 0, 0)},
     {"yellow", LEDMatrix::Color24bit(200, 200, 0)},
@@ -69,7 +72,10 @@ const Color COLORS[NUM_COLORS] = {
     {"lightgreen", LEDMatrix::Color24bit(0, 128, 0)},
     {"blue", LEDMatrix::Color24bit(0, 0, 255)}};
 
+constexpr uint8_t NUM_COLORS  = sizeof(COLORS) / sizeof(Color);
+
 uint32_t color(size_t index);
 uint32_t color(const char * name);
 const char *colorName(uint32_t color);
+uint8_t colorIndex(uint32_t color);
 #endif

@@ -265,7 +265,6 @@ namespace modes
             newBaseConfig->color = color((size_t)0);
             newBaseConfig->brightness = 50;
         }
-
     }
 
     template <std::size_t I = 0>
@@ -505,7 +504,6 @@ namespace modes
 
     void onGetConfig(Initialized &init)
     {
-        init.env.logger.logFormatted(F("On Get (%d)"), init.activatedModeIndexes);
         JsonDocument json;
         JsonObject config = json.to<JsonObject>();
         const char *typenames[std::variant_size_v<ModeConfig>];
@@ -518,11 +516,71 @@ namespace modes
         JsonObject colors = config[F("colors")].to<JsonObject>();
         for (int i = 0; i < NUM_COLORS; i++)
         {
-            colors[std::get<0>(COLORS[i])] = std::get<1>(COLORS[i]);
+            auto color = colors[String(i, HEX)].to<JsonObject>();
+            color[F("name")] = std::get<0>(COLORS[i]);
+            color[F("r")] = std::get<1>(COLORS[i]) & 0xFF;
+            color[F("g")] = (std::get<1>(COLORS[i]) >> 8) & 0xFF;
+            color[F("b")] = (std::get<1>(COLORS[i]) >> 16) & 0xFF;
         }
 
         modeConfigs(init.env, config);
-        config[F("flash")] = true;
+        String message;
+        serializeJsonPretty(json, message);
+
+        init.server.send(200, "application/json", message);
+    }
+
+    void onGetLive(Initialized &init)
+    {
+        JsonDocument json;
+        JsonObject textJson = json[F("text")].to<JsonObject>();
+        JsonObject colorJson = json[F("colors")].to<JsonObject>();
+        String textRow;
+        textRow.reserve(LEDMatrix::width);
+        String colorRow;
+        colorRow.reserve(LEDMatrix::width);
+
+        for (int r = 0; r < LEDMatrix::height; r++)
+        {
+            textRow.clear();
+            colorRow.clear();
+            for (int c = 0; c < LEDMatrix::width; c++)
+            {
+                uint8_t color = init.env.ledmatrix.colorIndexGrid(c, r);
+                if (color)
+                {
+                    colorRow.concat(String(color, HEX));
+                    textRow.concat(LEDMatrix::clockStringUmlaut[r * 11 + c]);
+                }
+                else
+                {
+                    colorRow.concat(" ");
+                    textRow.concat(" ");
+                }
+            }
+
+            textJson[String(r, HEX)] = textRow;
+            colorJson[String(r, HEX)] = colorRow;
+        }
+
+        colorRow.clear();
+        textRow.clear();
+        for (int m = 3; m >=0; m--)
+        {
+            uint8_t color = init.env.ledmatrix.colorIndexMinIndicator(m);
+            if (color)
+            {
+                colorRow.concat(String(color, HEX));
+                textRow.concat(F("-"));
+            }
+            else
+            {
+                colorRow.concat(" ");
+                textRow.concat(" ");
+            }
+        }
+        colorJson[F("M")] = colorRow;
+        textJson[F("M")] = textRow;
         String message;
         serializeJsonPretty(json, message);
 
@@ -613,11 +671,11 @@ namespace modes
                 const char *typeCstr = modeJson[F("type")];
                 if (typeCstr && modeType(init.modes[index]).compareTo(typeCstr) != 0)
                 {
-                    init.env.logger.logFormatted(F("before reinit %d / %d"), index,init.modes[index].index());
+                    init.env.logger.logFormatted(F("before reinit %d / %d"), index, init.modes[index].index());
                     reInit(typeCstr, init.env, init.modes[index]);
-                    init.env.logger.logFormatted(F("after reinit %d / %d"), index,init.modes[index].index());
+                    init.env.logger.logFormatted(F("after reinit %d / %d"), index, init.modes[index].index());
                 }
-                init.env.logger.logFormatted(F("modeFromJson %d / %d"), index,init.modes[index].index());
+                init.env.logger.logFormatted(F("modeFromJson %d / %d"), index, init.modes[index].index());
                 modeFromJson(init.modes[index], init.env, modeJson);
             }
         }
@@ -657,5 +715,6 @@ namespace modes
         on(server, "/modes", HTTP_GET, onGet);
         on(server, "/modes", HTTP_PATCH, onChange);
         on(server, "/configs", HTTP_GET, onGetConfig);
+        on(server, "/live", HTTP_GET, onGetLive);
     }
 }

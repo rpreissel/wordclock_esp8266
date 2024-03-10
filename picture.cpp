@@ -32,12 +32,12 @@ namespace picture
     void PictureHandler::modeToJson(const PictureConfig &modeConfig, Env &env, JsonObject data)
     {
         String row;
-        row.reserve(11);
+        row.reserve(LEDMatrix::width);
         JsonObject pixelsJson = data[F("pixels")].to<JsonObject>();
-        for (int r = 0; r < 11; r++)
+        for (int r = 0; r < LEDMatrix::height; r++)
         {
             row.clear();
-            for (int c = 0; c < 11; c++)
+            for (int c = 0; c < LEDMatrix::width; c++)
             {
                 if (modeConfig.pixels[r] & (1 << c))
                 {
@@ -49,7 +49,7 @@ namespace picture
                 }
             }
 
-            pixelsJson[String(r)] = row;
+            pixelsJson[String(r, HEX)] = row;
         }
     }
     void PictureHandler::modeFromJson(PictureConfig &modeConfig, Env &env, JsonObjectConst doc)
@@ -60,7 +60,7 @@ namespace picture
             auto pixelJson = pixelJsonVariant.as<JsonObjectConst>();
             for (int r = 0; r < 11; r++)
             {
-                const char* row = pixelJson[String(r)];
+                const char* row = pixelJson[String(r, HEX)];
                 if(!row) {
                     continue;
                 }

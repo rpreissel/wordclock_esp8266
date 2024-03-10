@@ -143,7 +143,7 @@ void setup()
   ledmatrix.setCurrentLimit(CURRENT_LIMIT_LED);
 
   // Turn on minutes leds (blue)
-  ledmatrix.setMinIndicator(15, color(6));
+  ledmatrix.setMinIndicator(15, color("blue"));
   ledmatrix.drawOnMatrixInstant();
 
   /** Use WiFiMaanger for handling initial Wifi setup **/
@@ -190,7 +190,7 @@ void setup()
   int timeoutcounter = 0;
   while (WiFi.status() != WL_CONNECTED && timeoutcounter < 30)
   {
-    ledmatrix.setMinIndicator(15, color(6));
+    ledmatrix.setMinIndicator(15, color("blue"));
     ledmatrix.drawOnMatrixInstant();
     delay(250);
     ledmatrix.setMinIndicator(15, 0);
@@ -257,7 +257,7 @@ void setup()
       for (int c = 0; c < LEDMatrix::width; c++)
       {
         matrix.fillScreen(0);
-        matrix.drawPixel(c, r, LEDMatrix::color24to16bit(color(2)));
+        matrix.drawPixel(c, r, LEDMatrix::color24to16bit(color("yellow")));
         matrix.show();
         delay(10);
       }
@@ -270,11 +270,11 @@ void setup()
 
     // display IP
     uint8_t address = WiFi.localIP()[3];
-    ledmatrix.printChar(1, 0, 'I', color(2));
-    ledmatrix.printChar(5, 0, 'P', color(2));
-    ledmatrix.printNumber(0, 6, (address / 100), color(2));
-    ledmatrix.printNumber(4, 6, (address / 10) % 10, color(2));
-    ledmatrix.printNumber(8, 6, address % 10, color(2));
+    ledmatrix.printChar(1, 0, 'I', color("yellow"));
+    ledmatrix.printChar(5, 0, 'P', color("yellow"));
+    ledmatrix.printNumber(0, 6, (address / 100), color("yellow"));
+    ledmatrix.printNumber(4, 6, (address / 10) % 10, color("yellow"));
+    ledmatrix.printNumber(8, 6, address % 10, color("yellow"));
     ledmatrix.drawOnMatrixInstant();
     delay(2000);
 
@@ -318,7 +318,7 @@ void loop()
     if (!apmode && WiFi.status() != WL_CONNECTED)
     {
       Serial.println("connection lost");
-      ledmatrix.gridAddPixel(0, 5, color(1));
+      ledmatrix.gridAddPixel(0, 5, color("red"));
       ledmatrix.drawOnMatrixInstant();
     }
   }
