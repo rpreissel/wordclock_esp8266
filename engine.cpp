@@ -518,9 +518,9 @@ namespace modes
         {
             auto color = colors[String(i, HEX)].to<JsonObject>();
             color[F("name")] = std::get<0>(COLORS[i]);
-            color[F("r")] = std::get<1>(COLORS[i]) & 0xFF;
+            color[F("r")] = (std::get<1>(COLORS[i]) >> 16) & 0xFF;
             color[F("g")] = (std::get<1>(COLORS[i]) >> 8) & 0xFF;
-            color[F("b")] = (std::get<1>(COLORS[i]) >> 16) & 0xFF;
+            color[F("b")] = std::get<1>(COLORS[i]) & 0xFF;
         }
 
         modeConfigs(init.env, config);
@@ -712,9 +712,9 @@ namespace modes
 
     void initServerEndpoints(ESP8266WebServer &server)
     {
-        on(server, "/modes", HTTP_GET, onGet);
-        on(server, "/modes", HTTP_PATCH, onChange);
-        on(server, "/configs", HTTP_GET, onGetConfig);
-        on(server, "/live", HTTP_GET, onGetLive);
+        on(server, "/api/modes", HTTP_GET, onGet);
+        on(server, "/api/modes", HTTP_PATCH, onChange);
+        on(server, "/api/configs", HTTP_GET, onGetConfig);
+        on(server, "/api/live", HTTP_GET, onGetLive);
     }
 }
