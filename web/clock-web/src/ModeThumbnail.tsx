@@ -3,6 +3,7 @@ import { Col } from "react-bootstrap";
 type ModeThumbnailProps = {
   mode: Mode;
   colors?: ColorMap;
+  onClick: (index:number) => void
 };
 
 const rgbToHex = (color: Color) => {
@@ -34,24 +35,20 @@ const colorNameToHex = (colorName: string, colors: ColorMap | undefined) => {
   return "#000000";
 };
 
-function ModeThumbnail({ mode, colors }: ModeThumbnailProps) {
+function ModeThumbnail({ mode, colors, onClick }: ModeThumbnailProps) {
   if (mode.type == "EMPTY") {
     return <></>;
   }
   if (mode.type == "OFF") {
     return (
-      <Col xs={4} md={2}>
-        <div className="text-center mb-2">Off</div>
-      </Col>
+        <button style={{ backgroundColor: "lightgray", height: "4em", width:"8em" }} className="btn m-2 overflow-hidden" onClick={_ =>onClick(mode.index)}>Off</button>
     );
   }
 
   return (
-    <Col xs={4} md={2}>
-      <div style={{ backgroundColor: colorNameToHex(mode.color, colors) }} className="text-center mb-2 p-2 rounded">
-        {mode.name}<br/> ({mode.type})
-      </div>
-    </Col>
+        <button style={{ backgroundColor: colorNameToHex(mode.color, colors), height: "4em", width:"8em"  }} className="btn m-2 overflow-hidden" onClick={_ =>onClick(mode.index)}>
+          {mode.name}<br/> ({mode.type})
+        </button>
   );
 }
 

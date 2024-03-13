@@ -59,3 +59,6 @@ type Modes = {
     modes: Mode[];
     current: number;
 }
+
+type PartialModes = Partial<Modes>
+
