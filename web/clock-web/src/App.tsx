@@ -1,9 +1,9 @@
-import { useModes } from "./model.ts";
+import { useModel } from "./model.ts";
 import ModeThumbnail from "./ModeThumbnail.tsx";
 import { Container, Row } from "react-bootstrap";
 
 function App() {
-  const [model] = useModes();
+  const [model] = useModel();
   
 
   
@@ -21,7 +21,7 @@ function App() {
             <ModeThumbnail key={-1} mode={{ type: "OFF", index: -1 }} onClick={index => model.current = index}/>
           {model.modes.map((mode) => (
           
-              <ModeThumbnail key={mode.index} mode={mode} colors={model.configs.colors} onClick={index => model.current = index}/>
+              <ModeThumbnail key={mode.index} mode={mode} colors={model.colors} onClick={index => model.current = index}/>
           
           ))}
         </div>

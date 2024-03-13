@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 
-interface ModesModel {
-  get modes(): Mode[];
-  get configs(): Configs;
-
-  current: number;
+type ModesModel = Readonly<Modes> & Readonly<Configs> & {
+  set current(index: number);
 }
-export function useModes(): [ModesModel | undefined] {
+export function useModel(): [ModesModel | undefined] {
   const [config, setConfig] = useState<Configs | undefined>();
   const [modes, setModes] = useState<Modes | undefined>();
 
@@ -37,17 +34,30 @@ export function useModes(): [ModesModel | undefined] {
     return [undefined];
   }
 
-  class ModesModelImpl implements ModesModel {
+  const _modes = modes as Modes;
+  const _configs = config as Configs;
+  const model: ModesModel = {
     get modes(): Mode[] {
-      return (modes as Modes).modes;
-    }
-    get configs(): Configs {
-      return config as Configs;
-    }
+      return _modes.modes;
+    },
+
+    get colors(): ColorMap {
+      return _configs.colors;
+    },
+
+    
+    get types() : string[] {
+        return _configs.types;
+    },
+
+    get times() : TimeMap {
+        return _configs.times;
+    },
+    
 
     get current(): number {
-      return (modes as Modes).current;
-    }
+      return _modes.current;
+    },
 
     set current(index: number) {
       fetch("./api/modes", {
@@ -60,8 +70,8 @@ export function useModes(): [ModesModel | undefined] {
           console.log(data);
         })
         .catch((error) => console.log(error));
-    }
+    },
   }
 
-  return [new ModesModelImpl()];
+  return [model];
 }
