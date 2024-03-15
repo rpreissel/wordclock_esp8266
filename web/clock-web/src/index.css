@@ -1,0 +1,32 @@
+body {
+  --bs-body-bg: darkgray;
+}
+
+.livegrid {
+  font-size: small;
+  display: grid;
+  grid-template-columns: repeat(11, 1.5em);
+  gap: 10px;
+  grid-auto-rows: 1.5em;
+  text-align: center;
+  background-color: black;
+  width: fit-content;
+  padding: 1em;
+}
+
+.livecell {
+  font-weight: bolder;
+  color: white;
+}
+
+.thumbnail {
+  font-weight: bold;
+  height: 4em;
+  width: 8em;
+}
+
+.active-thumbnail {
+  --bs-btn-border-width: 5px;
+  --bs-btn-border-color: white;
+  --bs-btn-hover-border-color: white;
+}

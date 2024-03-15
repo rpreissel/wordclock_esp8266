@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import defaultModes from "../../../data/export.json";
 
 type ModesModel = Readonly<Modes> & Readonly<Configs> & {
   set current(index: number);
 }
 export function useModel(): [ModesModel | undefined] {
-  const [config, setConfig] = useState<Configs | undefined>();
-  const [modes, setModes] = useState<Modes | undefined>();
+  const [config, setConfig] = useState<Configs | undefined>({});
+  const [modes, setModes] = useState<Modes | undefined>(defaultModes as Modes);
 
   useEffect(() => {
     fetch("./api/configs", {
