@@ -1,76 +1,77 @@
-type Color = {
+export type Color = {
   name: string;
   r: number;
   g: number;
   b: number;
 };
 
-type ColorMap = { [k: string]: Color };
+export type ColorMap = { [k: string]: Color };
 
-type TimesConfigMap = { [k: string]: string[] };
-type TimesMap = { [k: string]: string };
-type PixelMap = { [k: string]: string };
+export type TimesConfigMap = { [k: string]: string[] };
 
-type Configs = {
+export type TimesMap = { [k: string]: string };
+
+export type PixelMap = { [k: string]: string };
+
+export type Configs = {
   types: string[];
   colors: ColorMap;
   times: TimesConfigMap;
 };
 
-type Ledmatrix = {
-  0:string;
-  1:string;
-  2:string;
-  3:string;
-  4:string;
-  5:string;
-  6:string;
-  7:string;
-  8:string;
-  9:string;
-  a:string;
-  M:string;
-}
+export type Ledmatrix = {
+  0: string;
+  1: string;
+  2: string;
+  3: string;
+  4: string;
+  5: string;
+  6: string;
+  7: string;
+  8: string;
+  9: string;
+  a: string;
+  M: string;
+};
 
-type LiveViewData = {
+export type LiveViewData = {
   text: Ledmatrix;
-  colors: Ledmatrix
-}
+  colors: Ledmatrix;
+};
 
-
-type IndexMode = {
+export type IndexMode = {
   index: number;
 };
 
-type BaseMode = IndexMode & {
+export type BaseMode = IndexMode & {
   name: string;
   color: string;
   brightness: number;
 };
 
-type EmptyMode = IndexMode & {
+export type EmptyMode = IndexMode & {
   type: "EMPTY";
 };
 
-type OffMode = IndexMode & {
+export type OffMode = IndexMode & {
   type: "OFF";
 };
 
-type WordClockMode = BaseMode & {
+export type WordClockMode = BaseMode & {
   type: "WORDCLOCK";
   times: TimesMap;
 };
 
-type DigiClockMode = BaseMode & {
+export type DigiClockMode = BaseMode & {
   type: "DIGICLOCK";
 };
 
-type PictureMode = BaseMode & {
+export type PictureMode = BaseMode & {
   type: "PICTURE";
   pixels: PixelMap;
 };
 
-type Timer = {
+export type Timer = {
   mode: number;
   startHour: number;
   startMinute: number;
@@ -78,35 +79,39 @@ type Timer = {
   endMinute: number;
 };
 
-type TimerMode = BaseMode & {
+export type TimerMode = BaseMode & {
   type: "TIMER";
   mainMode: number;
   timers: Timer[];
 };
 
-type Interval = {
+export type Interval = {
   mode: number;
   seconds: number;
 };
 
-type IntervalMode = BaseMode & {
+export type IntervalMode = BaseMode & {
   type: "INTERVAL";
   intervals: Interval[];
 };
 
-type FixedTime = {
+export type FixedTime = {
   enabled: boolean;
   hours: number;
   minutes: number;
 };
 
-type Mode = EmptyMode | OffMode | WordClockMode | DigiClockMode | PictureMode | TimerMode | IntervalMode;
+export type Mode =
+  | EmptyMode
+  | OffMode
+  | WordClockMode
+  | DigiClockMode
+  | PictureMode
+  | TimerMode
+  | IntervalMode;
 
-type Modes = {
-    modes: Mode[];
-    current: number;
-    fixedTime: FixedTime;
-}
-
-type PartialModes = Partial<Modes>
-
+export type Modes = {
+  modes: Mode[];
+  current: number;
+  fixedTime: FixedTime;
+};

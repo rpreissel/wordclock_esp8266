@@ -28,5 +28,18 @@ body {
 .active-thumbnail {
   --bs-btn-border-width: 5px;
   --bs-btn-border-color: white;
+  --bs-btn-disabled-border-color: white;
+  --bs-btn-hover-border-color: white;
+}
+
+.color {
+  height: 2em;
+  width: 2em;
+}
+
+.active-color {
+  --bs-btn-border-width: 3px;
+  --bs-btn-border-color: white;
+  --bs-btn-disabled-border-color: white;
   --bs-btn-hover-border-color: white;
 }

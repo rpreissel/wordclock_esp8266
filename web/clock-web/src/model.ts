@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import defaultModes from "../../../data/export.json";
+import { Modes, Configs, Mode, ColorMap, TimesConfigMap, FixedTime } from "./types";
 
 type ModesModel = Readonly<Modes> & Readonly<Configs> & {
   set current(index: number);
   changeMode(mode:Mode):void;
 }
 export function useModel(): [ModesModel | undefined] {
-  const [config, setConfig] = useState<Configs | undefined>({});
-  const [modes, setModes] = useState<Modes | undefined>(defaultModes as Modes);
+  const [config, setConfig] = useState<Configs | undefined>();
+  const [modes, setModes] = useState<Modes | undefined>();
 
   useEffect(() => {
     fetch("./api/configs", {
@@ -60,6 +60,12 @@ export function useModel(): [ModesModel | undefined] {
     get current(): number {
       return _modes.current;
     },
+
+    
+    get fixedTime() : FixedTime {
+      return _modes.fixedTime;
+    },
+    
 
     set current(index: number) {
       fetch("./api/modes", {

@@ -1,6 +1,7 @@
+import { BaseMode, Configs, Mode } from "./types";
 import { Button, Form } from "react-bootstrap";
 
-import { colorNameToHex } from "./colors";
+import { ColorChooser } from "./Colors";
 import { useState } from "react";
 
 type ModeEditProps = {
@@ -12,45 +13,27 @@ type ModeEditProps = {
 type ModeBaseEditProps<M extends BaseMode> = {
   mode: M;
   configs: Configs;
-  onSave: (mode: M) => void;
+  onChange: (mode: M) => void;
 };
 
-function ModeBaseEdit<M extends BaseMode>({ mode, configs, onSave }: ModeBaseEditProps<M>) {
-  const [state, setState] = useState(mode);
-  console.log("a:" + state.name);
-  return <Form onSubmit={e => {
-    e.preventDefault();
-    onSave(state);
-  }} onReset={e => {
-    e.preventDefault();
-    setState(mode);
-  }}>
-    <Form.Group className="mb-3" controlId="formName">
+function ModeBaseEdit<M extends BaseMode>({ mode, configs, onChange }: ModeBaseEditProps<M>) {
+  return <>    <Form.Group className="mb-3" controlId="formName">
       <Form.Label>Name</Form.Label>
-      <Form.Control type="text" value={state.name} onChange={e => {
-        setState({ ...state, name: e.currentTarget.value });
+      <Form.Control type="text" value={mode.name} onChange={e => {
+        onChange({ ...mode, name: e.currentTarget.value });
       }} />
     </Form.Group>
     <Form.Group className="mb-3" controlId="formBrightness">
       <Form.Label>Brightness</Form.Label>
-      <Form.Range value={state.brightness} min="1" max="255" onChange={e => {
-        setState({ ...state, brightness: e.currentTarget.value });
+      <Form.Range value={mode.brightness} min="1" max="255" onChange={e => {
+        onChange({ ...mode, brightness: e.currentTarget.value });
       }} />
     </Form.Group>
     <Form.Group className="mb-3" controlId="formColor">
       <Form.Label>Color</Form.Label>
-      <Form.Select value={state.color} onChange={e => {
-        setState({ ...state, color: e.currentTarget.value });
-      }}>
-        {Object.keys(configs.colors).map((colorName, i) => (
-          i ?
-          <option style= {{background:colorNameToHex(configs.colors[colorName].name, configs.colors)}} value={configs.colors[colorName].name} key={i}>
-            {configs.colors[colorName].name}
-          </option> : <></>
-          
-        ))}
-
-      </Form.Select>
+      <ColorChooser value={mode.color} colors={configs.colors} onChange={c =>
+        onChange({ ...mode, color: c })
+      } />
     </Form.Group>
     <Button variant="primary" type="submit" className="me-2">
       Submit
@@ -58,18 +41,30 @@ function ModeBaseEdit<M extends BaseMode>({ mode, configs, onSave }: ModeBaseEdi
     <Button variant="secondary" type="reset">
       Reset
     </Button>
-  </Form>;
+  </>;
 }
 
-function ModeEdit({ mode, ...props }: ModeEditProps) {
-  if (mode.type == "EMPTY") {
+function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
+  const [state, setState] = useState(mode);
+  if (state.type == "EMPTY") {
     return <></>;
   }
-  if (mode.type == "DIGICLOCK") {
-    return <ModeBaseEdit mode={mode} {...props} />;
+  let formContent = <></>;
+  if (state.type == "DIGICLOCK") {
+    formContent = <ModeBaseEdit mode={state} {...props} onChange={mode => setState(mode)}/>;
   }
+  if (state.type == "WORDCLOCK") {
+    formContent = <ModeBaseEdit mode={state} {...props} onChange={mode => setState(mode)}/>;
+  }
+  return <Form onSubmit={e => {
+    e.preventDefault();
+    onSave(state);
+  }} onReset={e => {
+    e.preventDefault();
+    setState(mode);
+  }}>  {formContent}
+  </Form>
 
-  return <></>;
 }
 
 export default ModeEdit;
