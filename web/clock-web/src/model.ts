@@ -3,6 +3,7 @@ import defaultModes from "../../../data/export.json";
 
 type ModesModel = Readonly<Modes> & Readonly<Configs> & {
   set current(index: number);
+  changeMode(mode:Mode):void;
 }
 export function useModel(): [ModesModel | undefined] {
   const [config, setConfig] = useState<Configs | undefined>({});
@@ -51,7 +52,7 @@ export function useModel(): [ModesModel | undefined] {
         return _configs.types;
     },
 
-    get times() : TimeMap {
+    get times() : TimesConfigMap {
         return _configs.times;
     },
     
@@ -64,6 +65,19 @@ export function useModel(): [ModesModel | undefined] {
       fetch("./api/modes", {
         method: "PATCH",
         body: JSON.stringify({ current: index }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          setModes(data);
+          console.log(data);
+        })
+        .catch((error) => console.log(error));
+    },
+
+    changeMode(mode:Mode):void {
+      fetch("./api/modes", {
+        method: "PATCH",
+        body: JSON.stringify({ modes: [mode] }),
       })
         .then((response) => response.json())
         .then((data) => {

@@ -1,14 +1,12 @@
-import { Accordion, Container, Row } from "react-bootstrap";
+import { Accordion, Container } from "react-bootstrap";
 
 import LiveView from "./LiveView.tsx";
+import ModeEdit from "./ModeEdit.tsx";
 import ModeThumbnail from "./ModeThumbnail.tsx";
 import { useModel } from "./model.ts";
 
 function App() {
   const [model] = useModel();
-
-
-
 
   if (!model) {
     return <div>Loading</div>;
@@ -40,7 +38,7 @@ function App() {
           <Accordion.Header>Edit Mode</Accordion.Header>
           <Accordion.Body>
             <div className="d-flex justify-content-center">
-              <LiveView colors={model.colors} />
+              <ModeEdit mode={model.modes[model.current]} configs={model} onSave={(mode) => model.changeMode(mode)}/>
             </div>
           </Accordion.Body>
         </Accordion.Item>
