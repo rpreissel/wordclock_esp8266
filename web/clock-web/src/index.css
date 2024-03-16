@@ -43,3 +43,7 @@ body {
   --bs-btn-disabled-border-color: white;
   --bs-btn-hover-border-color: white;
 }
+
+.action {
+  width: 6em;
+}

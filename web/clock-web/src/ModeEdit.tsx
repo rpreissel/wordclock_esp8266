@@ -74,28 +74,28 @@ type ModeIntervalEditProps = {
 function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProps) {
   return <>
     <Form.Group className="mb-3" controlId="formInterval">
-      <Row>
-        <Col xs="3">
+      <div className="d-flex">
+        <div className="d-inline-block w-25 p-1">
           <Form.Label>Seconds</Form.Label>
-        </Col>
-        <Col xs="7">
+        </div>
+        <div className="d-inline-block flex-fill p-1">
           <Form.Label>Mode</Form.Label>
-        </Col>
-        <Col xs="2">
+        </div>
+        <div className="d-inline-block w-25 p-1">
           <Form.Label>Action</Form.Label>
-        </Col>
-      </Row>
+        </div>
+      </div>
       {mode.intervals.map((interval, i) => {
-        return (<Row key={i} className="mb-1">
-          <Col xs="3">
+        return (<div key={i} className="d-flex">
+          <div className="d-inline-block w-25 p-1">
             <Form.Control type="number" value={interval.seconds} onChange={e => {
               const newinterval = { ...interval, seconds: +e.currentTarget.value }
               const newIntervals = [...mode.intervals];
               newIntervals[i] = newinterval;
               onChange({ ...mode, intervals: newIntervals });
             }} />
-          </Col>
-          <Col xs="7">
+          </div>
+          <div className="d-inline-block flex-fill p-1">
             <Form.Select value={interval.mode} onChange={e => {
               const newinterval = { ...interval, mode: +e.currentTarget.value }
               const newIntervals = [...mode.intervals];
@@ -115,33 +115,33 @@ function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProps) {
               }
               <option key={-1} value={-1}>Off</option>;
             </Form.Select>
-          </Col>
-          <Col xs="2">
-            <Button type="button" variant="danger" disabled={mode.intervals.length < 3} size="sm" onClick={() => {
+          </div>
+          <div className="d-inline-block w-25 p-1">
+            <Button className="action" type="button" variant="danger" disabled={mode.intervals.length < 3} onClick={() => {
               const newIntervals = [...mode.intervals]
               newIntervals.splice(i, 1);
               onChange({ ...mode, intervals: newIntervals });
             }}>
               Delete
             </Button>
-          </Col>
-        </Row>);
+          </div>
+        </div>);
       })}
-      <Row>
-        <Col xs="3">
-        </Col>
-        <Col xs="7">
-        </Col>
-        <Col xs="2">
-          <Button type="button" variant="info" size="sm"  onClick={() => {
+      <div className="d-flex">
+        <div className="d-inline-block w-25 p-1">
+        </div>
+        <div className="d-inline-block flex-fill p-1">
+        </div>
+        <div className="d-inline-block w-25 p-1">
+          <Button type="button" variant="info" className="action" onClick={() => {
                 const newIntervals = [...mode.intervals]
                 newIntervals.push({seconds:10, mode:-1});
                 onChange({...mode, intervals:newIntervals});
               }}>
             Add
           </Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Form.Group>
   </>;
 }
@@ -173,7 +173,7 @@ function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
   if (newMode.type == "TIMER") {
     formContent = <ModeBaseEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} hideColorBrightness />;
   }
-  return <Form className="container" onSubmit={e => {
+  return <Form onSubmit={e => {
     e.preventDefault();
     onSave(newMode);
     setState({ mode: newMode, changed: false });
