@@ -39,7 +39,7 @@ function App() {
             <Accordion.Header>Edit Mode</Accordion.Header>
             <Accordion.Body>
               <div className="d-flex justify-content-center">
-                <ModeEdit key={model.current} mode={model.modes[model.current]} configs={model} onSave={(mode) => model.changeMode(mode)} />
+                <ModeEdit key={model.current} mode={model.modes[model.current]} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
               </div>
             </Accordion.Body>
           </Accordion.Item>
