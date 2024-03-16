@@ -14,7 +14,7 @@ const LiveRow = ({ text, colorString, colors }: LiveRowProps) => {
   return <>
     {range(0, 11).map((index) => {
       const color = index < colorString.length && colorString[index] != ' ' ? colorIndexToHex(+colorString[index], colors) : undefined;
-      return <div className="livecell" style={{ color: color }}>
+      return <div key={index} className="livecell" style={{ color: color }}>
         {index < text.length ? text[index] : ' '}
       </div>;
     })
@@ -47,18 +47,18 @@ const LiveView = ({ colors }: LiveViewProps) => {
   }
   return (
     <div className="livegrid">
-      <LiveRow text={data.text['0']} colorString={data.colors['0']} colors={colors} />
-      <LiveRow text={data.text['1']} colorString={data.colors['1']} colors={colors} />
-      <LiveRow text={data.text['2']} colorString={data.colors['2']} colors={colors} />
-      <LiveRow text={data.text['3']} colorString={data.colors['3']} colors={colors} />
-      <LiveRow text={data.text['4']} colorString={data.colors['4']} colors={colors} />
-      <LiveRow text={data.text['5']} colorString={data.colors['5']} colors={colors} />
-      <LiveRow text={data.text['6']} colorString={data.colors['6']} colors={colors} />
-      <LiveRow text={data.text['7']} colorString={data.colors['7']} colors={colors} />
-      <LiveRow text={data.text['8']} colorString={data.colors['8']} colors={colors} />
-      <LiveRow text={data.text['9']} colorString={data.colors['9']} colors={colors} />
-      <LiveRow text={data.text.a} colorString={data.colors.a} colors={colors} />
-      <LiveRow text={"   " + data.text.M} colorString={"   " + data.colors.M} colors={colors} />
+      <LiveRow key="0" text={data.text['0']} colorString={data.colors['0']} colors={colors} />
+      <LiveRow key="1" text={data.text['1']} colorString={data.colors['1']} colors={colors} />
+      <LiveRow key="2" text={data.text['2']} colorString={data.colors['2']} colors={colors} />
+      <LiveRow key="3" text={data.text['3']} colorString={data.colors['3']} colors={colors} />
+      <LiveRow key="4" text={data.text['4']} colorString={data.colors['4']} colors={colors} />
+      <LiveRow key="5" text={data.text['5']} colorString={data.colors['5']} colors={colors} />
+      <LiveRow key="6" text={data.text['6']} colorString={data.colors['6']} colors={colors} />
+      <LiveRow key="7" text={data.text['7']} colorString={data.colors['7']} colors={colors} />
+      <LiveRow key="8" text={data.text['8']} colorString={data.colors['8']} colors={colors} />
+      <LiveRow key="9" text={data.text['9']} colorString={data.colors['9']} colors={colors} />
+      <LiveRow key="a" text={data.text.a} colorString={data.colors.a} colors={colors} />
+      <LiveRow key="M" text={"   " + data.text.M} colorString={"   " + data.colors.M} colors={colors} />
     </div>
 
   )

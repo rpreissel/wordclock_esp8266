@@ -51,8 +51,8 @@ export const ColorChooser = ({ value, onChange, colors }: ColorChooserProps) => 
         const classes = "color btn m-2 overflow-hidden " + (active ? "active-color" : "");
 
         return i ?
-          <button disabled={active} style={{ backgroundColor: rgbToHex(go) }} className={classes} onClick={() => onChange(go.name)} />
-          : <></>
+          <button key={i} disabled={active} style={{ backgroundColor: rgbToHex(go) }} className={classes} onClick={() => onChange(go.name)} />
+          : <div key={i}></div>
 
       })}
     </div>
