@@ -1,4 +1,4 @@
-import { BaseMode, Configs, Interval, IntervalMode, Mode, WordClockMode } from "./types";
+import { BaseMode, Configs, IntervalMode, Mode, WordClockMode } from "./types";
 import { Button, Col, Form, Row } from "react-bootstrap";
 
 import { ColorChooser } from "./Colors";
@@ -58,7 +58,7 @@ function ModeWordClockEdit({ mode, configs, onChange }: ModeWordClockEditProps) 
           console.log(times);
           onChange({ ...mode, times: times });
         }}>
-          {go.map((t, i) => <option key={i} value={t}>{t}</option>)}
+          {go.map((t, i) => <option className="mb-1" key={i} value={t}>{t}</option>)}
         </Form.Select>
       })}
     </Form.Group>
@@ -71,7 +71,7 @@ type ModeIntervalEditProps = {
   configs: Configs;
   onChange: (mode: IntervalMode) => void;
 };
-function ModeIntervalEdit({ mode, modes, configs, onChange }: ModeIntervalEditProps) {
+function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProps) {
   return <>
     <Form.Group className="mb-3" controlId="formInterval">
       <Row>
@@ -173,7 +173,7 @@ function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
   if (newMode.type == "TIMER") {
     formContent = <ModeBaseEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} hideColorBrightness />;
   }
-  return <Form onSubmit={e => {
+  return <Form className="container" onSubmit={e => {
     e.preventDefault();
     onSave(newMode);
     setState({ mode: newMode, changed: false });
