@@ -43,6 +43,7 @@ const ModesManage = ({ modes, configs, onSave }: ModesManageProps) => {
                         }}>
                             {
                                 configs.types
+                                    .filter(t => t !== "OFF")
                                     .map((t, ti) => {
                                         return <option key={ti} value={t}>{t}</option>;
                                     })

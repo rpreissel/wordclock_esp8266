@@ -41,7 +41,7 @@ function App() {
             <Accordion.Header>Configure '{modeName(model.currentMode)} / {model.currentMode.type}'</Accordion.Header>
             <Accordion.Body>
               <div className="d-flex justify-content-center">
-                <ModeEdit key={model.modes[model.current].type + model.current} mode={model.modes[model.current]} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
+                <ModeEdit key={model.currentMode.type + model.current} mode={model.currentMode} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
               </div>
             </Accordion.Body>
           </Accordion.Item>
