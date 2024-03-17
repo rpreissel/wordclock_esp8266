@@ -1,6 +1,6 @@
 import { ColorMap, Mode } from "./types";
 
-import { colorNameToHex } from "./Colors";
+import { colorNameToHex } from "./colors";
 
 type ModeThumbnailProps = {
   mode: Mode;

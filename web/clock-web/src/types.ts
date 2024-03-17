@@ -115,3 +115,13 @@ export type Modes = {
   current: number;
   fixedTime: FixedTime;
 };
+
+export function modeName(mode:Mode) {
+  if(mode.type === "OFF") {
+    return "OFF";
+  }
+  if(mode.type === "EMPTY") {
+    return "EMPTY";
+  }
+  return mode.name;
+}

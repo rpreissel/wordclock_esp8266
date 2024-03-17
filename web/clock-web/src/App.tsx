@@ -3,6 +3,8 @@ import { Accordion, Container } from "react-bootstrap";
 import LiveView from "./LiveView.tsx";
 import ModeEdit from "./ModeEdit.tsx";
 import ModeThumbnail from "./ModeThumbnail.tsx";
+import ModesManage from "./ModesManage.tsx";
+import { modeName } from "./types.ts";
 import { useModel } from "./model.ts";
 
 function App() {
@@ -14,8 +16,8 @@ function App() {
 
   return (
     <Container fluid >
-      <Accordion defaultActiveKey={["0"]} alwaysOpen>
-        <Accordion.Item eventKey="0">
+      <Accordion defaultActiveKey={["Modes"]} alwaysOpen>
+        <Accordion.Item eventKey="Modes">
           <Accordion.Header>Modes</Accordion.Header>
           <Accordion.Body>
 
@@ -35,21 +37,29 @@ function App() {
           </Accordion.Body>
         </Accordion.Item>
         {model.current >= 0 && (<>
-          <Accordion.Item eventKey="1">
-            <Accordion.Header>Edit Mode</Accordion.Header>
+          <Accordion.Item eventKey="Configure">
+            <Accordion.Header>Configure '{modeName(model.currentMode)} / {model.currentMode.type}'</Accordion.Header>
             <Accordion.Body>
               <div className="d-flex justify-content-center">
-                <ModeEdit key={model.current} mode={model.modes[model.current]} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
+                <ModeEdit key={model.modes[model.current].type + model.current} mode={model.modes[model.current]} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
               </div>
             </Accordion.Body>
           </Accordion.Item>
         </>)}
-
-        <Accordion.Item eventKey="2">
-          <Accordion.Header>Live</Accordion.Header>
+        <Accordion.Item eventKey="View">
+          <Accordion.Header>View Clock</Accordion.Header>
           <Accordion.Body>
             <div className="d-flex justify-content-center">
               <LiveView colors={model.colors} />
+            </div>
+          </Accordion.Body>
+        </Accordion.Item>
+        <Accordion.Item eventKey="Organize">
+          <Accordion.Header>Organize Modes</Accordion.Header>
+          <Accordion.Body>
+            <div className="d-flex justify-content-center">
+              <ModesManage key={model.version} modes={model.modes.map(m => ({index:m.index, type:m.type, name:modeName(m)}))}
+              configs={model} onSave={modes => model.changeModes(modes)}/>
             </div>
           </Accordion.Body>
         </Accordion.Item>

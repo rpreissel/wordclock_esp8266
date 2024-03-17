@@ -1,7 +1,7 @@
 import { ColorMap, LiveViewData } from "./types";
 import { useEffect, useState } from "react"
 
-import { colorIndexToHex } from "./Colors";
+import { colorIndexToHex } from "./colors";
 
 const range = (start: number, end: number) => Array.from({ length: (end - start) }, (_, k) => k + start);
 type LiveRowProps = {
