@@ -11,6 +11,7 @@
 namespace eeprom
 {
     constexpr uint8_t MODE_COUNT = 16;
+    constexpr uint8_t NAMES_BUFFER = MODE_COUNT * 9;
     constexpr uint8_t CONFIG_COUNT = 64;
     constexpr uint8_t INIT_MARKER = 0x42;
 
@@ -20,10 +21,9 @@ namespace eeprom
         // 0001 = wordclock
         // 0010 = digiclock
         uint8_t type = 0b0;
+        uint8_t lengths = 0; // 4bits name, 4 bits config
         uint8_t brightness = 0;
         uint8_t colorIndex = 0;
-
-        char name[11] = {0};
     };
 
     struct EEPROMConfig
@@ -32,6 +32,7 @@ namespace eeprom
         uint8_t initMarker;
         uint8_t startMode = 0;
         ModeConfig modes[MODE_COUNT];
+        char names[NAMES_BUFFER + 1] = {0};
         uint64_t configs[CONFIG_COUNT];
     };
 }
@@ -343,7 +344,7 @@ namespace modes
                 auto &mode = init.eepromConfig.modes[i];
                 mode.type = 0;
                 mode.colorIndex = 0;
-                mode.name[0] = 0;
+                init.eepromConfig.names[i] = 0;
             }
             for (int i = 0; i < eeprom::CONFIG_COUNT; i++)
             {
@@ -355,22 +356,32 @@ namespace modes
         else
         {
             uint8_t nextConfig = 0;
+            uint8_t nameStartIndex = 0;
             for (int i = 0; i < eeprom::MODE_COUNT; i++)
             {
                 const auto &eeprommode = init.eepromConfig.modes[i];
                 auto &mode = init.modes[i];
-                auto type = eeprommode.type & 0b1111;
-                auto usedConfigs = (eeprommode.type >> 4);
+                auto type = eeprommode.type;
+                const char *name = &init.eepromConfig.names[nameStartIndex];
+                auto usedConfigs = (eeprommode.lengths >> 4);
                 reInit(type, init.env, mode);
                 BaseConfig *baseconfig = toBaseConfig(mode);
                 if (baseconfig)
                 {
-                    baseconfig->name = eeprommode.name;
+                    if (strlen(name))
+                    {
+                        baseconfig->name = name;
+                    }
+                    else
+                    {
+                        baseconfig->name = modeType(mode);
+                    }
                     baseconfig->brightness = eeprommode.brightness;
                     baseconfig->colorIndex = eeprommode.colorIndex;
                 }
                 fromConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], usedConfigs);
                 nextConfig += usedConfigs;
+                nameStartIndex += (strlen(name) + 1);
             }
 
             if (init.modes[init.eepromConfig.startMode].index())
@@ -384,6 +395,7 @@ namespace modes
     void saveToEEProm(Initialized &init)
     {
         uint8_t nextConfig = 0;
+        uint8_t nextNameIndex = 0;
         for (int i = 0; i < eeprom::MODE_COUNT; i++)
         {
             auto &eeprommode = init.eepromConfig.modes[i];
@@ -394,7 +406,19 @@ namespace modes
             {
                 eeprommode.brightness = baseconfig->brightness;
                 eeprommode.colorIndex = baseconfig->colorIndex;
-                strncpy(eeprommode.name, baseconfig->name.c_str(), 10);
+                auto nameLength = baseconfig->name.length();
+                auto modesPending = eeprom::MODE_COUNT - i;
+                auto availableChars = eeprom::NAMES_BUFFER - nextNameIndex - modesPending;
+                if (baseconfig->name == modeType(mode) || nameLength > availableChars)
+                {
+                    init.eepromConfig.names[nextNameIndex] = 0;
+                    nextNameIndex++;
+                }
+                else
+                {
+                    strcpy(&init.eepromConfig.names[nextNameIndex], baseconfig->name.c_str());
+                    nextNameIndex += ( nameLength + 1);
+                }
             }
             uint8_t usedConfigs = toConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], eeprom::CONFIG_COUNT - nextConfig);
             nextConfig += usedConfigs;
@@ -566,7 +590,7 @@ namespace modes
 
         colorRow.clear();
         textRow.clear();
-        for (int m = 3; m >=0; m--)
+        for (int m = 3; m >= 0; m--)
         {
             uint8_t color = init.env.ledmatrix.colorIndexMinIndicator(m);
             if (color)
