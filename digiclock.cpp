@@ -18,10 +18,10 @@ namespace digiclock
         uint8_t sndDigitH = hours % 10;
         uint8_t fstDigitM = minutes / 10;
         uint8_t sndDigitM = minutes % 10;
-        env.ledmatrix.printNumber(2, 0, fstDigitH, modeConfig.color);
-        env.ledmatrix.printNumber(6, 0, sndDigitH, modeConfig.color);
-        env.ledmatrix.printNumber(2, 6, fstDigitM, modeConfig.color);
-        env.ledmatrix.printNumber(6, 6, sndDigitM, modeConfig.color);
+        env.ledmatrix.printNumber(2, 0, fstDigitH, modeConfig.color());
+        env.ledmatrix.printNumber(6, 0, sndDigitH, modeConfig.color());
+        env.ledmatrix.printNumber(2, 6, fstDigitM, modeConfig.color());
+        env.ledmatrix.printNumber(6, 6, sndDigitM, modeConfig.color());
         return 500;
     }
 }

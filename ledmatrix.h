@@ -75,7 +75,8 @@ const Color COLORS[] = {
 constexpr uint8_t NUM_COLORS  = sizeof(COLORS) / sizeof(Color);
 
 uint32_t color(size_t index);
-uint32_t color(const char * name);
-const char *colorName(uint32_t color);
 uint8_t colorIndex(uint32_t color);
+uint8_t colorIndex(const char * name);
+const char *colorName(uint8_t index);
+uint32_t color(const char * name);
 #endif

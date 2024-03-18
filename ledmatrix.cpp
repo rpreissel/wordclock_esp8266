@@ -1,7 +1,7 @@
 #include "ledmatrix.h"
 #include "own_font.h"
 
-const String LEDMatrix::clockString =       "espistkfunfdreiviertelzwanzigzehnuminutenullvorqkjanachhalbNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
+const String LEDMatrix::clockString = "espistkfunfdreiviertelzwanzigzehnuminutenullvorqkjanachhalbNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
 const String LEDMatrix::clockStringUmlaut = "ESPISTKFUNFDREIVIERTELZWANZIGZEHNUMINUTENULLVORQKJANACHHALBNELFUNFEINSZWEIUNDDREISIGVIERSECHSXYACHTSIEBENZWOLFZEHNEUNAUHR";
 
 /**
@@ -333,7 +333,7 @@ void LEDMatrix::setCurrentLimit(uint16_t mycurrentLimit)
 
 uint8_t LEDMatrix::colorIndexGrid(uint8_t x, uint8_t y)
 {
-  if (x >= 0 && x < width && y>=0 && y<height)
+  if (x >= 0 && x < width && y >= 0 && y < height)
   {
     return colorIndex(targetgrid[y][x]);
   }
@@ -356,33 +356,7 @@ uint32_t color(size_t index)
   }
   return std::get<1>(COLORS[1]);
 }
-
-uint32_t color(const char *name)
-{
-  for (int i = 0; i < NUM_COLORS; i++)
-  {
-    if (strcmp(name, std::get<0>(COLORS[i])) == 0)
-    {
-      return std::get<1>(COLORS[i]);
-    }
-  }
-
-  return std::get<1>(COLORS[1]);
-}
-
-const char *colorName(uint32_t color)
-{
-  for (int i = 0; i < NUM_COLORS; i++)
-  {
-    if (std::get<1>(COLORS[i]) == color)
-    {
-      return std::get<0>(COLORS[i]);
-    }
-  }
-
-  return std::get<0>(COLORS[0]);
-}
-
+  
 uint8_t colorIndex(uint32_t color)
 {
   for (int i = 0; i < NUM_COLORS; i++)
@@ -394,4 +368,30 @@ uint8_t colorIndex(uint32_t color)
   }
 
   return 0;
+}
+
+uint8_t colorIndex(const char *name)
+{
+  for (int i = 0; i < NUM_COLORS; i++)
+  {
+    if (strcmp(name, std::get<0>(COLORS[i])) == 0)
+    {
+      return i;
+    }
+  }
+
+  return 0;
+}
+
+const char *colorName(uint8_t index)
+{
+  if (index > 0 && index < NUM_COLORS)
+  {
+    return std::get<0>(COLORS[index]);
+  }
+  return std::get<0>(COLORS[1]);
+}
+
+uint32_t color(const char * name) {
+    return color(colorIndex(name));
 }

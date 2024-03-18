@@ -92,7 +92,7 @@ namespace picture
             {
                 if (modeConfig.pixels[r] & (1 << c))
                 {
-                    env.ledmatrix.gridAddPixel(c, r, modeConfig.color);
+                    env.ledmatrix.gridAddPixel(c, r, modeConfig.color());
                 }
             }
         }

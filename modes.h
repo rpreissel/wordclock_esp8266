@@ -124,8 +124,12 @@ namespace modes
     struct BaseConfig
     {
         uint8_t brightness;
-        uint32_t color;
+        uint8_t colorIndex;
         String name;
+
+        uint32_t color() {
+            return ::color(colorIndex);
+        }
     };
 
     struct Empty;

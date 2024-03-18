@@ -12,7 +12,7 @@ namespace eeprom
 {
     constexpr uint8_t MODE_COUNT = 16;
     constexpr uint8_t CONFIG_COUNT = 64;
-    constexpr uint8_t INIT_MARKER = 0x43;
+    constexpr uint8_t INIT_MARKER = 0x42;
 
     struct ModeConfig
     {
@@ -20,8 +20,8 @@ namespace eeprom
         // 0001 = wordclock
         // 0010 = digiclock
         uint8_t type = 0b0;
-        // 8bit red, 8bit green, 8bit blue, 8 bit brightness
-        uint32_t color = 0;
+        uint8_t brightness = 0;
+        uint8_t colorIndex = 0;
 
         char name[11] = {0};
     };
@@ -256,13 +256,13 @@ namespace modes
         if (oldBaseConfig && newBaseConfig)
         {
             newBaseConfig->name = oldCopy.name;
-            newBaseConfig->color = oldCopy.color;
+            newBaseConfig->colorIndex = oldCopy.colorIndex;
             newBaseConfig->brightness = oldCopy.brightness;
         }
         else if (newBaseConfig)
         {
             newBaseConfig->name = modeType(current);
-            newBaseConfig->color = color((size_t)0);
+            newBaseConfig->colorIndex = 1;
             newBaseConfig->brightness = 50;
         }
     }
@@ -342,7 +342,7 @@ namespace modes
             {
                 auto &mode = init.eepromConfig.modes[i];
                 mode.type = 0;
-                mode.color = 0;
+                mode.colorIndex = 0;
                 mode.name[0] = 0;
             }
             for (int i = 0; i < eeprom::CONFIG_COUNT; i++)
@@ -366,8 +366,8 @@ namespace modes
                 if (baseconfig)
                 {
                     baseconfig->name = eeprommode.name;
-                    baseconfig->brightness = eeprommode.color >> 24;
-                    baseconfig->color = eeprommode.color & 0x0FFFFFF;
+                    baseconfig->brightness = eeprommode.brightness;
+                    baseconfig->colorIndex = eeprommode.colorIndex;
                 }
                 fromConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], usedConfigs);
                 nextConfig += usedConfigs;
@@ -392,7 +392,8 @@ namespace modes
             const BaseConfig *baseconfig = toBaseConfig(mode);
             if (baseconfig)
             {
-                eeprommode.color = (baseconfig->brightness & 0x00FF) << 24 | (baseconfig->color & 0x0FFFFFF);
+                eeprommode.brightness = baseconfig->brightness;
+                eeprommode.colorIndex = baseconfig->colorIndex;
                 strncpy(eeprommode.name, baseconfig->name.c_str(), 10);
             }
             uint8_t usedConfigs = toConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], eeprom::CONFIG_COUNT - nextConfig);
@@ -477,7 +478,7 @@ namespace modes
                                        if (baseConfig)
                                        {
                                            current[F("name")] = baseConfig->name;
-                                           current[F("color")] = colorName(baseConfig->color);
+                                           current[F("color")] = colorName(baseConfig->colorIndex);
                                            current[F("brightness")] = baseConfig->brightness;
                                        }
 
@@ -616,7 +617,7 @@ namespace modes
                                            JsonVariantConst colorJson = data[F("color")];
                                            if (!colorJson.isNull())
                                            {
-                                               baseConfig->color = color(colorJson.as<const char *>());
+                                               baseConfig->colorIndex = colorIndex(colorJson.as<const char *>());
                                            }
                                            const char *name = data[F("name")];
                                            if (name)

@@ -283,7 +283,7 @@ namespace wordclock
   uint32_t WordClockHandler::onLoop(WordClockConfig &modeConfig, Env &env, unsigned long millis)
   {
     env.ledmatrix.gridFlush();
-    show(env, modeConfig.config, env.hours(), env.minutes(), modeConfig.color);
+    show(env, modeConfig.config, env.hours(), env.minutes(), modeConfig.color());
     return 500;
   }
 
