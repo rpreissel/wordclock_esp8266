@@ -8,7 +8,7 @@ type ColorChooserProps = {
   colors: ColorMap;
 }
 
-export const ColorChooser = ({ value, onChange, showOffColor, colors }: ColorChooserProps) => {
+export const ColorChooser = ({ value, onChange, showOffColor=false, colors }: ColorChooserProps) => {
   return <div className="d-flex">
     <div style={{ width: "fit-content", margin: "auto" }}>
 

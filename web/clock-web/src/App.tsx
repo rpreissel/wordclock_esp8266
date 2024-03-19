@@ -1,4 +1,5 @@
-import { Accordion, Container } from "react-bootstrap";
+import { Accordion, AccordionContext, Container } from "react-bootstrap";
+import { PropsWithChildren, useContext } from "react";
 
 import LiveView from "./LiveView.tsx";
 import ModeEdit from "./edit/ModeEdit.tsx";
@@ -7,6 +8,15 @@ import ModesManage from "./ModesManage.tsx";
 import { modeName } from "./types.ts";
 import { useModel } from "./model.ts";
 
+type AccordionBodyExtProps = {
+  eventKey:string;
+};
+const AccordionBodyExt =({eventKey, children}:PropsWithChildren<AccordionBodyExtProps>) => {
+  const { activeEventKey } = useContext(AccordionContext);
+  return <Accordion.Body>
+    {activeEventKey && (activeEventKey as string[]).includes(eventKey) ? children : <></>}
+  </Accordion.Body>
+};
 function App() {
   const [model] = useModel();
   console.log("render")
@@ -39,29 +49,29 @@ function App() {
         {model.current >= 0 && (<>
           <Accordion.Item eventKey="Configure">
             <Accordion.Header>Configure '{modeName(model.currentMode)} / {model.currentMode.type}'</Accordion.Header>
-            <Accordion.Body>
-              <div className="d-flex justify-content-center">
-                <ModeEdit key={model.currentMode.type + model.current} mode={model.currentMode} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
-              </div>
-            </Accordion.Body>
+            <AccordionBodyExt eventKey="Configure">
+                <div className="d-flex justify-content-center">
+                  <ModeEdit key={model.currentMode.type + model.current} mode={model.currentMode} configs={model} modes={model.modes} onSave={(mode) => model.changeMode(mode)} />
+                </div>
+            </AccordionBodyExt>
           </Accordion.Item>
         </>)}
         <Accordion.Item eventKey="View">
           <Accordion.Header>View Clock</Accordion.Header>
-          <Accordion.Body>
-            <div className="d-flex justify-content-center">
-              <LiveView colors={model.colors} />
-            </div>
-          </Accordion.Body>
+          <AccordionBodyExt eventKey="View">
+              <div className="d-flex justify-content-center">
+                <LiveView colors={model.colors} />
+              </div>
+          </AccordionBodyExt>
         </Accordion.Item>
         <Accordion.Item eventKey="Organize">
           <Accordion.Header>Organize Modes</Accordion.Header>
-          <Accordion.Body>
-            <div className="d-flex justify-content-center">
-              <ModesManage key={model.version} modes={model.modes.map(m => ({index:m.index, type:m.type, name:modeName(m)}))}
-              configs={model} onSave={modes => model.changeModes(modes)}/>
-            </div>
-          </Accordion.Body>
+          <AccordionBodyExt eventKey="Organize">
+              <div className="d-flex justify-content-center">
+                <ModesManage key={model.version} modes={model.modes.map(m => ({ index: m.index, type: m.type, name: modeName(m) }))}
+                  configs={model} onSave={modes => model.changeModes(modes)} />
+              </div>
+          </AccordionBodyExt>
         </Accordion.Item>
       </Accordion>
     </Container>

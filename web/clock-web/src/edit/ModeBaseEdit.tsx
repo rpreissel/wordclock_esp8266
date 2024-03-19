@@ -6,10 +6,11 @@ import { Form } from "react-bootstrap";
 export type ModeBaseEditProps<M extends BaseMode> = {
   mode: M;
   configs: Configs;
+  colorLabel?:string;
   onChange: (mode: M) => void;
 };
 
-export function ModeBaseEdit<M extends BaseMode>({ mode, configs, onChange }: ModeBaseEditProps<M>) {
+export function ModeBaseEdit<M extends BaseMode>({ mode, configs, colorLabel='Color',onChange }: ModeBaseEditProps<M>) {
   return <>
     <Form.Group className="mb-1" controlId="formBrightness">
       <Form.Label>Brightness</Form.Label>
@@ -18,7 +19,7 @@ export function ModeBaseEdit<M extends BaseMode>({ mode, configs, onChange }: Mo
       }} />
     </Form.Group>
     <Form.Group className="mb-1" controlId="formColor">
-      <Form.Label>Color</Form.Label>
+      <Form.Label>{colorLabel}</Form.Label>
       <ColorChooser value={mode.color} colors={configs.colors} onChange={c => onChange({ ...mode, color: c })} />
     </Form.Group>
   </>;

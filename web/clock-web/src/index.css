@@ -18,6 +18,26 @@ body {
   font-weight: bolder;
   color: white;
 }
+.picgrid {
+  font-size: small;
+  display: grid;
+  grid-template-columns: repeat(11, 2em);
+  gap: 10px;
+  grid-auto-rows: 2em;
+  text-align: center;
+  background-color: black;
+  width: fit-content;
+  padding: 1em;
+}
+
+.piccell {
+  border-width: 1px;
+  border-color: white;
+  border-style: solid;
+  font-weight: bolder;
+  color: lightgrey;
+  cursor: pointer;
+}
 
 .thumbnail {
   font-weight: bold;

@@ -39,16 +39,16 @@ namespace picture
     void setPixelColor(PictureConfig &modeConfig, uint8_t r, uint8_t c, bool multiColor, uint8_t color)
     {
         int _bit = (r * 11 + c) * (multiColor ? 2 : 1);
-        uint8_t& _byte = modeConfig.pixels[_bit / 8];
+        uint8_t &_byte = modeConfig.pixels[_bit / 8];
         if (multiColor)
         {
-            _byte&= ~(0b11 << (_bit % 8));
-            _byte|= (color & 0b11) << (_bit % 8);
+            _byte &= ~(0b11 << (_bit % 8));
+            _byte |= (color & 0b11) << (_bit % 8);
         }
         else
         {
-            _byte&= ~(0b1 << (_bit % 8));
-            _byte|= (color & 0b1) << (_bit % 8);
+            _byte &= ~(0b1 << (_bit % 8));
+            _byte |= (color & 0b1) << (_bit % 8);
         }
     }
     uint8_t PictureHandler::toConfig(const PictureConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
@@ -99,7 +99,7 @@ namespace picture
             row.clear();
             for (int c = 0; c < LEDMatrix::width; c++)
             {
-                uint8_t color = getPixelColor(modeConfig, r, c,multiColor);
+                uint8_t color = getPixelColor(modeConfig, r, c, multiColor);
                 if (color)
                 {
                     row.concat(String(color));
@@ -115,16 +115,16 @@ namespace picture
     }
     void PictureHandler::modeFromJson(PictureConfig &modeConfig, Env &env, JsonObjectConst doc)
     {
-        const char* colorName1 = doc[F("color1")];
-        uint8_t color1 = colorName1 ? color(colorName1) : 0;
-        const char* colorName2 = doc[F("color2")];
-        uint8_t color2 = colorName2 ? color(colorName2) : 0;
+        const char *colorName1 = doc[F("color1")];
+        uint8_t color1 = colorName1 ? colorIndex(colorName1) : 0;
+        const char *colorName2 = doc[F("color2")];
+        uint8_t color2 = colorName2 ? colorIndex(colorName2) : 0;
         bool multiColor = colorName1 || colorName2;
-        if(colorName1)
+        if (colorName1)
         {
             modeConfig.additionalColorIndexes[0] = color1;
         }
-        if(colorName2)
+        if (colorName2)
         {
             modeConfig.additionalColorIndexes[1] = color2;
         }
@@ -137,12 +137,12 @@ namespace picture
                 const char *row = pixelJson[String(r, HEX)];
                 if (!row)
                 {
-                    row ="           ";
+                    row = "           ";
                 }
-                
+
                 for (int c = 0; c < 11 && c < strlen(row); c++)
                 {
-                    setPixelColor(modeConfig,r,c,multiColor,String(row[c]).toInt());
+                    setPixelColor(modeConfig, r, c, multiColor, String(row[c]).toInt());
                 }
             }
         }
@@ -156,14 +156,17 @@ namespace picture
 
     uint32_t PictureHandler::onLoop(PictureConfig &modeConfig, Env &env, unsigned long millis)
     {
-        uint8_t colorMap[] ={0,modeConfig.colorIndex, modeConfig.additionalColorIndexes[0], modeConfig.additionalColorIndexes[1]};
+        uint32_t colorMap[] = {color((size_t)0),
+                               color(modeConfig.colorIndex),
+                               color(modeConfig.additionalColorIndexes[0]),
+                               color(modeConfig.additionalColorIndexes[1])};
         env.ledmatrix.gridFlush();
         bool multiColor = colors(modeConfig) > 1;
         for (int r = 0; r < 11; r++)
         {
             for (int c = 0; c < 11; c++)
             {
-                uint8_t color = getPixelColor(modeConfig,r,c,multiColor);
+                uint8_t color = getPixelColor(modeConfig, r, c, multiColor);
                 env.ledmatrix.gridAddPixel(c, r, colorMap[color]);
             }
         }

@@ -32,7 +32,7 @@ function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
   }
   if (newMode.type == "PICTURE") {
     formContent = <>
-      <ModeBaseEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} />
+      <ModeBaseEdit mode={newMode} colorLabel="Color1" {...props} onChange={mode => setState({ mode, changed: true })} />
       <ModePictureEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} />
     </>
   }

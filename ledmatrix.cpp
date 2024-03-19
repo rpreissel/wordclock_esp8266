@@ -350,11 +350,11 @@ uint8_t LEDMatrix::colorIndexMinIndicator(uint8_t x)
 }
 uint32_t color(size_t index)
 {
-  if (index > 0 && index < NUM_COLORS)
+  if (index >= 0 && index < NUM_COLORS)
   {
     return std::get<1>(COLORS[index]);
   }
-  return std::get<1>(COLORS[1]);
+  return std::get<1>(COLORS[0]);
 }
   
 uint8_t colorIndex(uint32_t color)
