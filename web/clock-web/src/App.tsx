@@ -1,7 +1,7 @@
 import { Accordion, Container } from "react-bootstrap";
 
 import LiveView from "./LiveView.tsx";
-import ModeEdit from "./ModeEdit.tsx";
+import ModeEdit from "./edit/ModeEdit.tsx";
 import ModeThumbnail from "./ModeThumbnail.tsx";
 import ModesManage from "./ModesManage.tsx";
 import { modeName } from "./types.ts";
