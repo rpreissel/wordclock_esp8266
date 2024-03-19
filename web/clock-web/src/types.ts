@@ -69,6 +69,8 @@ export type DigiClockMode = BaseMode & {
 export type PictureMode = BaseMode & {
   type: "PICTURE";
   pixels: PixelMap;
+  color1: string;
+  color2: string;
 };
 
 export type Timer = {

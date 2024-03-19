@@ -1,4 +1,4 @@
-import { BaseMode, Configs, IntervalMode, Mode, TimerMode, WordClockMode } from "./types";
+import { BaseMode, Configs, IntervalMode, Mode, PictureMode, TimerMode, WordClockMode } from "./types";
 import { Button, Form } from "react-bootstrap";
 
 import { ColorChooser } from "./ColorChooser";
@@ -19,13 +19,13 @@ type ModeBaseEditProps<M extends BaseMode> = {
 
 function ModeBaseEdit<M extends BaseMode>({ mode, configs, onChange }: ModeBaseEditProps<M>) {
   return <>
-    <Form.Group className="mb-3" controlId="formBrightness">
+    <Form.Group className="mb-1" controlId="formBrightness">
       <Form.Label>Brightness</Form.Label>
       <Form.Range value={mode.brightness} min="1" max="255" onChange={e => {
         onChange({ ...mode, brightness: e.currentTarget.value });
       }} />
     </Form.Group>
-    <Form.Group className="mb-3" controlId="formColor">
+    <Form.Group className="mb-1" controlId="formColor">
       <Form.Label>Color</Form.Label>
       <ColorChooser value={mode.color} colors={configs.colors} onChange={c =>
         onChange({ ...mode, color: c })
@@ -53,6 +53,28 @@ function ModeWordClockEdit({ mode, configs, onChange }: ModeWordClockEditProps) 
           {go.map((t, i) => <option key={i} value={t}>{t}</option>)}
         </Form.Select>
       })}
+    </Form.Group>
+  </>;
+}
+
+type ModePictureEditProps = {
+  mode: PictureMode;
+  configs: Configs;
+  onChange: (mode: PictureMode) => void;
+};
+function ModePictureEdit({ mode, configs, onChange }: ModePictureEditProps) {
+  return <>
+    <Form.Group className="mb-1" controlId="formColor1">
+      <Form.Label>Color2</Form.Label>
+      <ColorChooser value={mode.color1} colors={configs.colors} showOffColor onChange={c =>
+        onChange({ ...mode, color1: c })
+      } />
+    </Form.Group>
+    <Form.Group className="mb-1" controlId="formColor2">
+      <Form.Label>Color3</Form.Label>
+      <ColorChooser value={mode.color2} colors={configs.colors} showOffColor onChange={c =>
+        onChange({ ...mode, color2: c })
+      } />
     </Form.Group>
   </>;
 }
@@ -231,7 +253,10 @@ function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
     </>;
   }
   if (newMode.type == "PICTURE") {
-    formContent = <ModeBaseEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} />;
+    formContent = <>
+      <ModeBaseEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} />
+      <ModePictureEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} />
+    </>
   }
   if (newMode.type == "INTERVAL") {
     formContent = <>

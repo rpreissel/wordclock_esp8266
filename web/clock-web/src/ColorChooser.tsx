@@ -3,11 +3,12 @@ import { rgbToHex } from "./colors";
 
 type ColorChooserProps = {
   value: string;
+  showOffColor?: boolean;
   onChange: (color: string) => void;
   colors: ColorMap;
 }
 
-export const ColorChooser = ({ value, onChange, colors }: ColorChooserProps) => {
+export const ColorChooser = ({ value, onChange, showOffColor, colors }: ColorChooserProps) => {
   return <div className="d-flex">
     <div style={{ width: "fit-content", margin: "auto" }}>
 
@@ -16,7 +17,7 @@ export const ColorChooser = ({ value, onChange, colors }: ColorChooserProps) => 
         const active = value === go.name;
         const classes = "color btn m-2 overflow-hidden " + (active ? "active-color" : "");
 
-        return i ?
+        return i || showOffColor ?
           <button key={i} disabled={active} style={{ backgroundColor: rgbToHex(go) }} className={classes} onClick={() => onChange(go.name)} />
           : <div key={i}></div>
 
