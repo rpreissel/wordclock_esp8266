@@ -13,26 +13,15 @@ export type TimesMap = { [k: string]: string };
 
 export type PixelMap = { [k: string]: string };
 
+export type Ledmatrix = { [k: string]: string };
+
 export type Configs = {
   types: string[];
   colors: ColorMap;
   times: TimesConfigMap;
+  leds: Ledmatrix;
 };
 
-export type Ledmatrix = {
-  0: string;
-  1: string;
-  2: string;
-  3: string;
-  4: string;
-  5: string;
-  6: string;
-  7: string;
-  8: string;
-  9: string;
-  a: string;
-  M: string;
-};
 
 export type LiveViewData = {
   text: Ledmatrix;

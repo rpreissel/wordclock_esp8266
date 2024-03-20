@@ -548,6 +548,23 @@ namespace modes
             color[F("b")] = std::get<1>(COLORS[i]) & 0xFF;
         }
 
+        JsonObject leds = config[F("leds")].to<JsonObject>();
+        String textRow;
+        textRow.reserve(LEDMatrix::width);
+
+        for (int r = 0; r < LEDMatrix::height; r++)
+        {
+            textRow.clear();
+            for (int c = 0; c < LEDMatrix::width; c++)
+            {
+                textRow.concat(LEDMatrix::clockStringUmlaut[r * 11 + c]);                
+            }
+
+            leds[String(r, HEX)] = textRow;
+        }
+
+        leds[F("M")] = "   ----   ";
+
         modeConfigs(init.env, config);
         String message;
         serializeJsonPretty(json, message);

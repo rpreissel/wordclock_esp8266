@@ -60,7 +60,7 @@ function App() {
           <Accordion.Header>View Clock</Accordion.Header>
           <AccordionBodyExt eventKey="View">
               <div className="d-flex justify-content-center">
-                <LiveView colors={model.colors} />
+                <LiveView configs={model} />
               </div>
           </AccordionBodyExt>
         </Accordion.Item>

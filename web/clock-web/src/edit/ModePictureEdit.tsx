@@ -1,7 +1,7 @@
+import { ButtonGroup, Form, ToggleButton } from "react-bootstrap";
 import { Configs, PictureMode } from "../types";
 
 import { ColorChooser } from "../ColorChooser";
-import { Form } from "react-bootstrap";
 import { colorNameToHex } from "../colors";
 import { range } from "../range";
 import { useState } from "react";
@@ -10,16 +10,17 @@ type ColorRgbMap = { [k: string]: string };
 
 type PictureRowProps = {
   colors: ColorRgbMap;
-  text: string;
+  colorString: string;
+  textString: string;
   onClick: (col:number) => void
 };
 
-const PictureRow = ({ text, colors, onClick }: PictureRowProps) => {
+const PictureRow = ({ colorString: colorString,textString, colors, onClick }: PictureRowProps) => {
   return <>
     {range(0, 11).map((index) => {
-      const color = index < text.length && text[index] != ' ' ? colors[text[index]] : undefined;
-      return <div key={index} className="piccell" style={{ backgroundColor: color }} onClick={() => onClick(index)}>
-        {index < text.length ? text[index] : ' '}
+      const color = colors[index < colorString.length ? colorString[index] : ' '];
+      return <div key={index} className="piccell" style={{ color: color }} onClick={() => onClick(index)}>
+        {index < textString.length ? textString[index] : ' '}
       </div>;
     })
     }
@@ -35,9 +36,10 @@ type ModePictureEditProps = {
 export function ModePictureEdit({ mode, configs, onChange }: ModePictureEditProps) {
   const [color, setColor] = useState("1");
   const colors: ColorRgbMap = {
+    ' ': "gray",
     1: colorNameToHex(mode.color, configs.colors),
-    2: colorNameToHex(mode.color1, configs.colors),
-    3: colorNameToHex(mode.color2, configs.colors)
+    2: mode.color1==="off" ? "gray" : colorNameToHex(mode.color1, configs.colors),
+    3: mode.color2==="off" ? "gray" : colorNameToHex(mode.color2, configs.colors)
   };
   return <>
     <Form.Group className="mb-1" controlId="formColor1">
@@ -50,38 +52,37 @@ export function ModePictureEdit({ mode, configs, onChange }: ModePictureEditProp
     </Form.Group>
     <hr />
     <div className="mb-1">
-      <Form.Check
-        inline
-        label="Color1"
-        name="color"
+    <ButtonGroup>
+      <ToggleButton
+        id="color1"
         type="radio"
+        value={"1"}
         checked={color === "1"}
-        onChange={() => setColor("1")}
-      />
-      <Form.Check
-        inline
-        label="Color2"
-        name="color"
+        variant="secondary"
+        onChange={() => setColor("1")}> Color1 </ToggleButton>
+      <ToggleButton
+        id="color2"
         type="radio"
+        value={"2"}
         checked={color === "2"}
-        onChange={() => setColor("2")}
-      />
-      <Form.Check
-        inline
-        label="Color3"
-        name="color"
+        variant="secondary"
+        onChange={() => setColor("2")}> Color2 </ToggleButton>
+      <ToggleButton
+        id="color3"
         type="radio"
+        value={"3"}
+        variant="secondary"
         checked={color === "3"}
-        onChange={() => setColor("3")}
-      />
+        onChange={() => setColor("3")}> Color3 </ToggleButton>
+        </ButtonGroup>
     </div>
-    <div className="picgrid">
+    <div className="picgrid mb-2">
       {range(0, 11).map((index) => {
-        const rowText = mode.pixels[index.toString(16)];
-        return <PictureRow key={index} text={rowText} colors={colors} onClick={col =>{
+        const rowColors = mode.pixels[index.toString(16)];
+        return <PictureRow key={index} colorString={rowColors} textString={configs.leds[index.toString(16)]} colors={colors} onClick={col =>{
           console.log("onClick " + index + "/" +col);
-          const newColor = rowText[col]!==color.toString() ? color.toString() : ' ';
-          const newRowText= rowText.substring(0,col) + newColor + rowText.substring(col+1);
+          const newColor = rowColors[col]!==color.toString() ? color.toString() : ' ';
+          const newRowText= rowColors.substring(0,col) + newColor + rowColors.substring(col+1);
           const newPixels = {...mode.pixels };
           newPixels[index.toString(16)] = newRowText;
           console.log(newPixels);

@@ -21,9 +21,9 @@ body {
 .picgrid {
   font-size: small;
   display: grid;
-  grid-template-columns: repeat(11, 2em);
+  grid-template-columns: repeat(11, 1.5em);
   gap: 10px;
-  grid-auto-rows: 2em;
+  grid-auto-rows: 1.5em;
   text-align: center;
   background-color: black;
   width: fit-content;
@@ -31,9 +31,6 @@ body {
 }
 
 .piccell {
-  border-width: 1px;
-  border-color: white;
-  border-style: solid;
   font-weight: bolder;
   color: lightgrey;
   cursor: pointer;
@@ -65,5 +62,5 @@ body {
 }
 
 .action {
-  width: 6em;
+  width: 5em;
 }

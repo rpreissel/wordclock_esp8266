@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modes, Configs, Mode, ColorMap, TimesConfigMap, FixedTime } from "./types";
+import { Modes, Configs, Mode, ColorMap, TimesConfigMap, FixedTime, Ledmatrix } from "./types";
 
 type ModesModel = Readonly<Modes> & Readonly<Configs> & {
   get version():number;
@@ -53,6 +53,9 @@ export function useModel(): [ModesModel | undefined] {
 
     get colors(): ColorMap {
       return _configs.colors;
+    },
+    get leds(): Ledmatrix {
+      return _configs.leds;
     },
 
     
