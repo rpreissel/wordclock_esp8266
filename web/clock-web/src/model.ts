@@ -4,6 +4,7 @@ import { Modes, Configs, Mode, ColorMap, TimesConfigMap, FixedTime, Ledmatrix } 
 type ModesModel = Readonly<Modes> & Readonly<Configs> & {
   get version():number;
   set current(index: number);
+  set fixedTime(fixedTime: FixedTime);
   changeMode(mode:Mode):void;
   changeModes(modes:{ index: number, type: string, name: string }[]):void;
   get currentMode(): Mode;
@@ -87,6 +88,19 @@ export function useModel(): [ModesModel | undefined] {
         .then((data) => {
           setModes(data);
           setVersion(version+1);
+          console.log(data);
+        })
+        .catch((error) => console.log(error));
+    },
+
+    set fixedTime(fixedTime: FixedTime) {
+      fetch("./api/modes", {
+        method: "PATCH",
+        body: JSON.stringify({ fixedTime: fixedTime }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          setModes(data);
           console.log(data);
         })
         .catch((error) => console.log(error));

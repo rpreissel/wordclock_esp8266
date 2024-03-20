@@ -64,3 +64,8 @@ body {
 .action {
   width: 5em;
 }
+
+.flexbreak {
+  flex-basis: 100%;
+  height: 0;
+}

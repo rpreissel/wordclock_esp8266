@@ -15,6 +15,15 @@ export type PixelMap = { [k: string]: string };
 
 export type Ledmatrix = { [k: string]: string };
 
+export type Time = {
+  hours: number;
+  minutes: number;
+};
+
+export type FixedTime = Time & {
+  enabled: boolean;
+};
+
 export type Configs = {
   types: string[];
   colors: ColorMap;
@@ -24,7 +33,7 @@ export type Configs = {
 
 
 export type LiveViewData = {
-  text: Ledmatrix;
+  time: Time;
   colors: Ledmatrix;
 };
 
@@ -86,11 +95,6 @@ export type IntervalMode = BaseMode & {
   intervals: Interval[];
 };
 
-export type FixedTime = {
-  enabled: boolean;
-  hours: number;
-  minutes: number;
-};
 
 export type Mode =
   | EmptyMode
