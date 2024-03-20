@@ -48,7 +48,7 @@ namespace picture
         else
         {
             _byte &= ~(0b1 << (_bit % 8));
-            _byte |= (color & 0b1) << (_bit % 8);
+            _byte |= (color == 1 ? 1 : 0) << (_bit % 8);
         }
     }
     uint8_t PictureHandler::toConfig(const PictureConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
@@ -116,10 +116,10 @@ namespace picture
     void PictureHandler::modeFromJson(PictureConfig &modeConfig, Env &env, JsonObjectConst doc)
     {
         const char *colorName1 = doc[F("color1")];
-        uint8_t color1 = colorName1 ? colorIndex(colorName1) : 0;
+        uint8_t color1 = colorName1 ? colorIndex(colorName1) : modeConfig.additionalColorIndexes[0];
         const char *colorName2 = doc[F("color2")];
-        uint8_t color2 = colorName2 ? colorIndex(colorName2) : 0;
-        bool multiColor = colorName1 || colorName2;
+        uint8_t color2 = colorName2 ? colorIndex(colorName2) : modeConfig.additionalColorIndexes[1];
+        bool multiColor = color1 || color2;
         if (colorName1)
         {
             modeConfig.additionalColorIndexes[0] = color1;

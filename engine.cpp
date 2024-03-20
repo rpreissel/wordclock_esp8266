@@ -575,16 +575,16 @@ namespace modes
     void onGetLive(Initialized &init)
     {
         JsonDocument json;
-        JsonObject textJson = json[F("text")].to<JsonObject>();
+        JsonObject timeJson = json[F("time")].to<JsonObject>();
+        timeJson[F("hours")] = init.env.hours();
+        timeJson[F("minutes")] = init.env.minutes();
+
         JsonObject colorJson = json[F("colors")].to<JsonObject>();
-        String textRow;
-        textRow.reserve(LEDMatrix::width);
         String colorRow;
         colorRow.reserve(LEDMatrix::width);
 
         for (int r = 0; r < LEDMatrix::height; r++)
         {
-            textRow.clear();
             colorRow.clear();
             for (int c = 0; c < LEDMatrix::width; c++)
             {
@@ -592,37 +592,30 @@ namespace modes
                 if (color)
                 {
                     colorRow.concat(String(color, HEX));
-                    textRow.concat(LEDMatrix::clockStringUmlaut[r * 11 + c]);
                 }
                 else
                 {
                     colorRow.concat(" ");
-                    textRow.concat(" ");
                 }
             }
 
-            textJson[String(r, HEX)] = textRow;
             colorJson[String(r, HEX)] = colorRow;
         }
 
         colorRow.clear();
-        textRow.clear();
         for (int m = 3; m >= 0; m--)
         {
             uint8_t color = init.env.ledmatrix.colorIndexMinIndicator(m);
             if (color)
             {
                 colorRow.concat(String(color, HEX));
-                textRow.concat(F("-"));
             }
             else
             {
                 colorRow.concat(" ");
-                textRow.concat(" ");
             }
         }
         colorJson[F("M")] = colorRow;
-        textJson[F("M")] = textRow;
         String message;
         serializeJsonPretty(json, message);
 
