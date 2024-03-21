@@ -20,8 +20,7 @@ namespace eeprom
         // 4 bits for type + config data count
         // 0001 = wordclock
         // 0010 = digiclock
-        uint8_t type = 0b0;
-        uint8_t lengths = 0; // 4bits name, 4 bits config
+        uint8_t type = 0b0; // 4bits type, 4 bits config
         uint8_t brightness = 0;
         uint8_t colorIndex = 0;
     };
@@ -361,10 +360,13 @@ namespace modes
             {
                 const auto &eeprommode = init.eepromConfig.modes[i];
                 auto &mode = init.modes[i];
-                auto type = eeprommode.type;
+                auto type = eeprommode.type & 0xF;
                 const char *name = &init.eepromConfig.names[nameStartIndex];
-                auto usedConfigs = (eeprommode.lengths >> 4);
+                auto usedConfigs = (eeprommode.type >> 4);
+
+                init.env.logger.logFormatted(F("Start load: index: %d type: %d configs: %d name: %s"), i, type, usedConfigs, name);
                 reInit(type, init.env, mode);
+                init.env.logger.logFormatted(F("After reinit: index: %d modeindex: %d"), i, mode.index());
                 BaseConfig *baseconfig = toBaseConfig(mode);
                 if (baseconfig)
                 {
@@ -400,6 +402,7 @@ namespace modes
         {
             auto &eeprommode = init.eepromConfig.modes[i];
             auto &mode = init.modes[i];
+            init.env.logger.logFormatted(F("Start save: %d-%d"), i, mode.index());
 
             const BaseConfig *baseconfig = toBaseConfig(mode);
             if (baseconfig)
@@ -411,11 +414,13 @@ namespace modes
                 auto availableChars = eeprom::NAMES_BUFFER - nextNameIndex - modesPending;
                 if (baseconfig->name == modeType(mode) || nameLength > availableChars)
                 {
+                    init.env.logger.logFormatted(F("No Name: %d-%s"), i, baseconfig->name.c_str());
                     init.eepromConfig.names[nextNameIndex] = 0;
                     nextNameIndex++;
                 }
                 else
                 {
+                    init.env.logger.logFormatted(F("Name: %d-%s"), i, baseconfig->name.c_str());
                     strcpy(&init.eepromConfig.names[nextNameIndex], baseconfig->name.c_str());
                     nextNameIndex += ( nameLength + 1);
                 }

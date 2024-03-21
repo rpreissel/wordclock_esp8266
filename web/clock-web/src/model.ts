@@ -82,7 +82,7 @@ export function useModel(): [ModesModel | undefined] {
     set current(index: number) {
       fetch("./api/modes", {
         method: "PATCH",
-        body: JSON.stringify({ current: index }),
+        body: JSON.stringify({ current: index, flash:true }),
       })
         .then((response) => response.json())
         .then((data) => {
@@ -109,7 +109,7 @@ export function useModel(): [ModesModel | undefined] {
     changeMode(mode:Mode):void {
       fetch("./api/modes", {
         method: "PATCH",
-        body: JSON.stringify({ modes: [mode] }),
+        body: JSON.stringify({ modes: [mode], flash:true }),
       })
         .then((response) => response.json())
         .then((data) => {
@@ -123,7 +123,7 @@ export function useModel(): [ModesModel | undefined] {
     changeModes(modes:{ index: number, type: string, name: string }[]):void {
       fetch("./api/modes", {
         method: "PATCH",
-        body: JSON.stringify({ modes }),
+        body: JSON.stringify({ modes,flash:true }),
       })
         .then((response) => response.json())
         .then((data) => {

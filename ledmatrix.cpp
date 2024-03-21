@@ -385,11 +385,11 @@ uint8_t colorIndex(const char *name)
 
 const char *colorName(uint8_t index)
 {
-  if (index > 0 && index < NUM_COLORS)
+  if (index >= 0 && index < NUM_COLORS)
   {
     return std::get<0>(COLORS[index]);
   }
-  return std::get<0>(COLORS[1]);
+  return std::get<0>(COLORS[0]);
 }
 
 uint32_t color(const char * name) {

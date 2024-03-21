@@ -54,18 +54,20 @@ namespace picture
     uint8_t PictureHandler::toConfig(const PictureConfig &modeConfig, Env &env, uint64_t config[], const uint8_t emptyConfigs)
     {
         bool multiColor = colors(modeConfig) > 1;
-        uint8_t bytes = multiColor ? 16 : 32;
+        uint8_t bytes = multiColor ? 32 : 16;
         uint8_t configs = bytes / 8;
         if (emptyConfigs < configs)
         {
             return 0;
         }
+        env.logger.logFormatted(F("save config picture %s %d %d"), modeConfig.name.c_str(), multiColor, configs);
         memcpy(config, modeConfig.pixels, bytes);
         if (multiColor)
         {
-            uint64_t colors = ((modeConfig.additionalColorIndexes[0] & 0xF) << 56) |
-                              ((modeConfig.additionalColorIndexes[1] & 0xF) << 60);
+            uint64_t colors = (((uint64_t)(modeConfig.additionalColorIndexes[0] & 0xF)) << 56) |
+                              (((uint64_t)(modeConfig.additionalColorIndexes[1] & 0xF)) << 60);
             config[configs - 1] |= colors;
+            env.logger.logFormatted(F("save multicolor %s"), String(colors,HEX).c_str());
         }
 
         return configs;
@@ -73,9 +75,12 @@ namespace picture
 
     void PictureHandler::fromConfig(PictureConfig &modeConfig, Env &env, const uint64_t config[], const uint8_t usedConfigs)
     {
+        env.logger.logFormatted(F("read config picture %s %d"), modeConfig.name.c_str(), usedConfigs);
         if (usedConfigs == 2)
         {
             memcpy(modeConfig.pixels, config, 16);
+            modeConfig.additionalColorIndexes[0] = 0;
+            modeConfig.additionalColorIndexes[1] = 0;
         }
         else if (usedConfigs == 4)
         {
@@ -83,6 +88,7 @@ namespace picture
             uint64_t colors = config[usedConfigs - 1];
             modeConfig.additionalColorIndexes[0] = (colors >> 56) & 0xf;
             modeConfig.additionalColorIndexes[1] = (colors >> 60) & 0xf;
+            env.logger.logFormatted(F("read multicolor picture %s %s %d %d"),modeConfig.name.c_str(), String(colors,HEX), modeConfig.additionalColorIndexes[0],modeConfig.additionalColorIndexes[1]);
         }
     }
 
