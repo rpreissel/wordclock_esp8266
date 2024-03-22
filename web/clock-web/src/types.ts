@@ -42,8 +42,11 @@ export type IndexMode = {
   index: number;
 };
 
-export type BaseMode = IndexMode & {
+export type NameMode = IndexMode & {
   name: string;
+};
+
+export type BaseMode = NameMode  & {
   color: string;
   brightness: number;
 };
@@ -80,7 +83,7 @@ export type Timer = {
   endMinute: number;
 };
 
-export type TimerMode = BaseMode & {
+export type TimerMode = NameMode & {
   type: "TIMER";
   mainMode: number;
   timers: Timer[];
@@ -91,7 +94,7 @@ export type Interval = {
   seconds: number;
 };
 
-export type IntervalMode = BaseMode & {
+export type IntervalMode = NameMode & {
   type: "INTERVAL";
   intervals: Interval[];
 };
@@ -113,11 +116,18 @@ export type Modes = {
 };
 
 export function modeName(mode:Mode) {
-  if(mode.type === "OFF") {
-    return "OFF";
+  if('name' in mode) {
+    return mode.name;
   }
-  if(mode.type === "EMPTY") {
-    return "EMPTY";
-  }
-  return mode.name;
+
+  return mode.type;
 }
+
+export function modeFromIndex(index:number,modes:Mode[]):Mode {
+  if(index <0) {
+    return {type:'OFF', index:index};
+  }
+
+  return modes[index];
+}
+

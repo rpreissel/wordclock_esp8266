@@ -17,7 +17,7 @@ namespace digiclock
         virtual uint32_t onLoop(DigiClockConfig &modeConfig, Env& env, unsigned long millis) override;
     };
 
-    struct DigiClockConfig : BaseConfig
+    struct DigiClockConfig : NameConfig, ColorConfig
     {
         using handler_type = DigiClockHandler;
     };

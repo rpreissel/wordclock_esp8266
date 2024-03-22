@@ -23,7 +23,6 @@ namespace modes
     template <typename TModeType>
     typename _handler_instance<TModeType>::handler_type _handler_instance<TModeType>::handler;
 
-    struct BaseConfig;
     using ActivateDelegator = std::function<void(int)>;
     using LoopDelegator = std::function<uint32_t(unsigned long)>;
     class Env
@@ -121,11 +120,16 @@ namespace modes
         }
     };
 
-    struct BaseConfig
+    struct NameConfig
+    {
+        String name;
+    };
+
+
+    struct ColorConfig
     {
         uint8_t brightness;
         uint8_t colorIndex;
-        String name;
 
         uint32_t color() {
             return ::color(colorIndex);

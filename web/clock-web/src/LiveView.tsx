@@ -1,4 +1,4 @@
-import { ColorMap, Configs, FixedTime, LiveViewData, Mode, Modes, modeName } from "./types";
+import { ColorMap, Configs, FixedTime, LiveViewData, Mode, modeName } from "./types";
 import { useEffect, useState } from "react"
 
 import { Form } from "react-bootstrap";
@@ -58,10 +58,10 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange }: Liv
           <Form.Group controlId="formModes" className="mb-1">
             <Form.Label>
               {data.activemodes.map((index, i) => {
-                return <>
+                return <span key={i}>
                   {i!=0 && <span className="me-1 ms-1">/</span>}
                   <span>{modeName(modes[index])}</span>
-                </>
+                </span>
               })}
             </Form.Label>
           </Form.Group>

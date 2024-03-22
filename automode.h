@@ -34,7 +34,7 @@ namespace automode
     };
 
     constexpr uint8_t MAX_TIMER_COUNT = 10;
-    struct TimerModeConfig : BaseConfig
+    struct TimerModeConfig : NameConfig
     {
         using handler_type = TimerModeHandler;
         int mainMode = 0;
@@ -69,7 +69,7 @@ namespace automode
     };
 
     constexpr uint8_t MAX_INTERVAL_COUNT = 10;
-    struct IntervalModeConfig : BaseConfig
+    struct IntervalModeConfig : NameConfig
     {
         using handler_type = IntervalModeHandler;
         uint8_t intervalCount = 0;

@@ -5,6 +5,7 @@ import LiveView from "./LiveView.tsx";
 import ModeEdit from "./edit/ModeEdit.tsx";
 import ModeThumbnail from "./ModeThumbnail.tsx";
 import ModesManage from "./ModesManage.tsx";
+import { modeIndexToColorHex } from "./colors.ts";
 import { modeName } from "./types.ts";
 import { useModel } from "./model.ts";
 
@@ -35,14 +36,14 @@ function App() {
           <div className="d-flex justify-content-center">
             <div style={{ width: "fit-content", margin: "auto" }}>
 
-              <ModeThumbnail key={-1} mode={{ type: "OFF", index: -1 }} colors={model.colors} active={model.current == -1}
+              <ModeThumbnail key={-1} mode={{ type: "OFF", index: -1 }} color="lightgray" active={model.current == -1}
                 onClick={index => model.current = index} />
-              {model.modes.map((mode) => (
+              {model.modes.map((mode) => {
+                const colorHex = modeIndexToColorHex(mode.index,model.modes, model.colors);
+                return (<ModeThumbnail key={mode.index} mode={mode} color={colorHex} active={model.current == mode.index}
+                  onClick={index => model.current = index} />);
 
-                <ModeThumbnail key={mode.index} mode={mode} colors={model.colors} active={model.current == mode.index}
-                  onClick={index => model.current = index} />
-
-              ))}
+              })}
             </div>
           </div>
         </AccordionPart>
@@ -54,15 +55,15 @@ function App() {
           </AccordionPart>
         </>)}
         <AccordionPart eventKey="View" header="View Clock">
-            <div className="d-flex justify-content-center">
-              <LiveView modes={model.modes} configs={model} fixedTime={model.fixedTime} onChange={fixedTime => model.fixedTime = fixedTime} />
-            </div>
+          <div className="d-flex justify-content-center">
+            <LiveView modes={model.modes} configs={model} fixedTime={model.fixedTime} onChange={fixedTime => model.fixedTime = fixedTime} />
+          </div>
         </AccordionPart>
         <AccordionPart eventKey="Organize" header="Organize Modes">
-            <div className="d-flex justify-content-center">
-              <ModesManage key={model.version} modes={model.modes.map(m => ({ index: m.index, type: m.type, name: modeName(m) }))}
-                configs={model} onSave={modes => model.changeModes(modes)} />
-            </div>
+          <div className="d-flex justify-content-center">
+            <ModesManage key={model.version} modes={model.modes.map(m => ({ index: m.index, type: m.type, name: modeName(m) }))}
+              configs={model} onSave={modes => model.changeModes(modes)} />
+          </div>
         </AccordionPart>
       </Accordion>
     </Container>

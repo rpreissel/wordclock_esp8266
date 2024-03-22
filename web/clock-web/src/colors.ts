@@ -1,4 +1,4 @@
-import { Color, ColorMap } from "./types";
+import { Color, ColorMap, Mode, modeFromIndex } from "./types";
 
 export const rgbToHex = (color: Color) => {
   return (
@@ -34,3 +34,18 @@ export const colorNameToHex = (
 
   return "#000000";
 };
+
+export const modeIndexToColorHex = (modeIndex: number, modes:Mode[], colors: ColorMap):string => {
+  const mode = modeFromIndex(modeIndex, modes);
+  if('color' in mode) {
+    return colorNameToHex(mode.color, colors);
+  }
+
+  if(mode.type === 'TIMER') {
+    return modeIndexToColorHex(mode.mainMode,modes, colors);
+  }
+  if(mode.type === 'INTERVAL') {
+    return modeIndexToColorHex(mode.intervals[0].mode,modes, colors);
+  }
+  return "#000000";
+}

@@ -42,6 +42,38 @@ namespace modes
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
     constexpr int EMPTY_MODE_INDEX = -16;
 
+template <typename C, typename... Args>
+    const C *castToConfig(const std::variant<Args...> &para)
+    {
+        return std::visit(
+            Overload{[](const Args &mt) -> const C *
+                     {
+                         if constexpr (std::is_base_of<C, Args>())
+                         {
+                             return &mt;
+                         }
+
+                         return nullptr;
+                     }...},
+            para);
+    }
+
+    template <typename C, typename... Args>
+    C *castToConfig(std::variant<Args...> &para)
+    {
+        return std::visit(
+            Overload{[](Args &mt) -> C *
+                     {
+                         if constexpr (std::is_base_of<C, Args>())
+                         {
+                             return &mt;
+                         }
+
+                         return nullptr;
+                     }...},
+            para);
+    }
+
     template <typename... Args>
     String modeType(const std::variant<Args...> &para)
     {
@@ -54,10 +86,10 @@ namespace modes
     String modeName(const std::variant<Args...> &para)
     {
         String type = modeType(para);
-        const BaseConfig *baseConfig = toBaseConfig(para);
-        if (baseConfig)
+        const NameConfig *nameConfig = castToConfig<NameConfig>(para);
+        if (nameConfig)
         {
-            return baseConfig->name + F(" (") + type + F(")");
+            return nameConfig->name + F(" (") + type + F(")");
         }
         return type;
     }
@@ -193,33 +225,6 @@ namespace modes
     void initServerEndpoints(ESP8266WebServer &server);
     void activateRootMode(Initialized &init, int index);
 
-    template <typename... Args>
-    const BaseConfig *toBaseConfig(const std::variant<Args...> &para)
-    {
-        return std::visit(Overload{[](const Args &mt) -> const BaseConfig *
-                                   {
-                                       if constexpr (std::is_base_of<BaseConfig, Args>())
-                                       {
-                                           return &mt;
-                                       }
-                                       return nullptr;
-                                   }...},
-                          para);
-    }
-
-    template <typename... Args>
-    BaseConfig *toBaseConfig(std::variant<Args...> &para)
-    {
-        return std::visit(Overload{[](Args &mt) -> BaseConfig *
-                                   {
-                                       if constexpr (std::is_base_of<BaseConfig, Args>())
-                                       {
-                                           return &mt;
-                                       }
-                                       return nullptr;
-                                   }...},
-                          para);
-    }
 
     template <typename... Args>
     void fromConfig(std::variant<Args...> &para, Env &env, const uint64_t config[], const uint8_t usedConfigs)
@@ -243,27 +248,19 @@ namespace modes
     template <std::size_t I>
     void reInit(ModeConfig &current, Env &env)
     {
-        BaseConfig *oldBaseConfig = toBaseConfig(current);
-        BaseConfig oldCopy;
-        if (oldBaseConfig)
-        {
-            oldCopy = *oldBaseConfig;
-        }
         auto newMode = std::variant_alternative_t<I, EEPROMModeConfig>();
         _handler_instance<std::variant_alternative_t<I, EEPROMModeConfig>>::handler.init(newMode, env);
         current = newMode;
-        BaseConfig *newBaseConfig = toBaseConfig(current);
-        if (oldBaseConfig && newBaseConfig)
+        NameConfig *nameConfig = castToConfig<NameConfig>(current);
+        if (nameConfig)
         {
-            newBaseConfig->name = oldCopy.name;
-            newBaseConfig->colorIndex = oldCopy.colorIndex;
-            newBaseConfig->brightness = oldCopy.brightness;
+            nameConfig->name = modeType(current);
         }
-        else if (newBaseConfig)
+        ColorConfig *colorConfig = castToConfig<ColorConfig>(current);
+        if (colorConfig)
         {
-            newBaseConfig->name = modeType(current);
-            newBaseConfig->colorIndex = 1;
-            newBaseConfig->brightness = 50;
+            colorConfig->colorIndex = 1;
+            colorConfig->brightness = 50;
         }
     }
 
@@ -367,19 +364,23 @@ namespace modes
                 init.env.logger.logFormatted(F("Start load: index: %d type: %d configs: %d name: %s"), i, type, usedConfigs, name);
                 reInit(type, init.env, mode);
                 init.env.logger.logFormatted(F("After reinit: index: %d modeindex: %d"), i, mode.index());
-                BaseConfig *baseconfig = toBaseConfig(mode);
-                if (baseconfig)
+                NameConfig *nameConfig = castToConfig<NameConfig>(mode);
+                ColorConfig *colorConfig = castToConfig<ColorConfig>(mode);
+                if (nameConfig)
                 {
                     if (strlen(name))
                     {
-                        baseconfig->name = name;
+                        nameConfig->name = name;
                     }
                     else
                     {
-                        baseconfig->name = modeType(mode);
+                        nameConfig->name = modeType(mode);
                     }
-                    baseconfig->brightness = eeprommode.brightness;
-                    baseconfig->colorIndex = eeprommode.colorIndex;
+                }
+                if (colorConfig)
+                {
+                    colorConfig->brightness = eeprommode.brightness;
+                    colorConfig->colorIndex = eeprommode.colorIndex;
                 }
                 fromConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], usedConfigs);
                 nextConfig += usedConfigs;
@@ -404,26 +405,30 @@ namespace modes
             auto &mode = init.modes[i];
             init.env.logger.logFormatted(F("Start save: %d-%d"), i, mode.index());
 
-            const BaseConfig *baseconfig = toBaseConfig(mode);
-            if (baseconfig)
+            const NameConfig *nameConfig = castToConfig<NameConfig>(mode);
+            const ColorConfig *colorConfig = castToConfig<ColorConfig>(mode);
+            if (nameConfig)
             {
-                eeprommode.brightness = baseconfig->brightness;
-                eeprommode.colorIndex = baseconfig->colorIndex;
-                auto nameLength = baseconfig->name.length();
+                auto nameLength = nameConfig->name.length();
                 auto modesPending = eeprom::MODE_COUNT - i;
                 auto availableChars = eeprom::NAMES_BUFFER - nextNameIndex - modesPending;
-                if (baseconfig->name == modeType(mode) || nameLength > availableChars)
+                if (nameConfig->name == modeType(mode) || nameLength > availableChars)
                 {
-                    init.env.logger.logFormatted(F("No Name: %d-%s"), i, baseconfig->name.c_str());
+                    init.env.logger.logFormatted(F("No Name: %d-%s"), i, nameConfig->name.c_str());
                     init.eepromConfig.names[nextNameIndex] = 0;
                     nextNameIndex++;
                 }
                 else
                 {
-                    init.env.logger.logFormatted(F("Name: %d-%s"), i, baseconfig->name.c_str());
-                    strcpy(&init.eepromConfig.names[nextNameIndex], baseconfig->name.c_str());
-                    nextNameIndex += ( nameLength + 1);
+                    init.env.logger.logFormatted(F("Name: %d-%s"), i, nameConfig->name.c_str());
+                    strcpy(&init.eepromConfig.names[nextNameIndex], nameConfig->name.c_str());
+                    nextNameIndex += (nameLength + 1);
                 }
+            }
+            if (colorConfig)
+            {
+                eeprommode.brightness = colorConfig->brightness;
+                eeprommode.colorIndex = colorConfig->colorIndex;
             }
             uint8_t usedConfigs = toConfig(mode, init.env, &init.eepromConfig.configs[nextConfig], eeprom::CONFIG_COUNT - nextConfig);
             nextConfig += usedConfigs;
@@ -503,12 +508,16 @@ namespace modes
         return std::visit(Overload{[&para, current, &env](Args &mt)
                                    {
                                        current[F("type")] = Args::handler_type::TYPE;
-                                       BaseConfig *baseConfig = toBaseConfig(para);
-                                       if (baseConfig)
+                                       NameConfig *nameConfig = castToConfig<NameConfig>(para);
+                                       ColorConfig *colorConfig = castToConfig<ColorConfig>(para);
+                                       if (nameConfig)
                                        {
-                                           current[F("name")] = baseConfig->name;
-                                           current[F("color")] = colorName(baseConfig->colorIndex);
-                                           current[F("brightness")] = baseConfig->brightness;
+                                           current[F("name")] = nameConfig->name;
+                                       }
+                                       if (colorConfig)
+                                       {
+                                           current[F("color")] = colorName(colorConfig->colorIndex);
+                                           current[F("brightness")] = colorConfig->brightness;
                                        }
 
                                        _handler_instance<Args>::handler.modeToJson(mt, env, current);
@@ -562,7 +571,7 @@ namespace modes
             textRow.clear();
             for (int c = 0; c < LEDMatrix::width; c++)
             {
-                textRow.concat(LEDMatrix::clockStringUmlaut[r * 11 + c]);                
+                textRow.concat(LEDMatrix::clockStringUmlaut[r * 11 + c]);
             }
 
             leds[String(r, HEX)] = textRow;
@@ -581,9 +590,9 @@ namespace modes
     {
         JsonDocument json;
         JsonArray modesJson = json[F("activemodes")].to<JsonArray>();
-        for(uint8_t i;i<eeprom::MODE_COUNT;i++)
+        for (uint8_t i; i < eeprom::MODE_COUNT; i++)
         {
-            if(init.activatedModeIndexes[i] == EMPTY_MODE_INDEX)
+            if (init.activatedModeIndexes[i] == EMPTY_MODE_INDEX)
             {
                 break;
             }
@@ -656,7 +665,7 @@ namespace modes
     {
         return std::visit(Overload{[&para, data, &env](Args &mt)
                                    {
-                                       BaseConfig *baseConfig = toBaseConfig(para);
+                                       ColorConfig *baseConfig = castToConfig<ColorConfig>(para);
                                        if (baseConfig)
                                        {
                                            JsonVariantConst brightness = data[F("brightness")];
@@ -669,10 +678,14 @@ namespace modes
                                            {
                                                baseConfig->colorIndex = colorIndex(colorJson.as<const char *>());
                                            }
+                                       }
+                                       NameConfig *nameConfig = castToConfig<NameConfig>(para);
+                                       if (nameConfig)
+                                       {
                                            const char *name = data[F("name")];
                                            if (name)
                                            {
-                                               baseConfig->name = name;
+                                               nameConfig->name = name;
                                            }
                                        }
 

@@ -24,7 +24,7 @@ namespace picture
         virtual uint32_t onLoop(PictureConfig &modeConfig, Env& env, unsigned long millis) override;
     };
 
-    struct PictureConfig : BaseConfig
+    struct PictureConfig : NameConfig, ColorConfig
     {
         using handler_type = PictureHandler;
         uint8_t pixels[32];

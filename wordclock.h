@@ -22,7 +22,7 @@ namespace wordclock
         virtual uint32_t onLoop(WordClockConfig &modeConfig, Env& env, unsigned long millis) override;
 
     };
-    struct WordClockConfig : BaseConfig
+    struct WordClockConfig : NameConfig, ColorConfig
     {
         using handler_type = WordClockHandler;
         uint8_t config[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
