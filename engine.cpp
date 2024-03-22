@@ -580,6 +580,17 @@ namespace modes
     void onGetLive(Initialized &init)
     {
         JsonDocument json;
+        JsonArray modesJson = json[F("activemodes")].to<JsonArray>();
+        for(uint8_t i;i<eeprom::MODE_COUNT;i++)
+        {
+            if(init.activatedModeIndexes[i] == EMPTY_MODE_INDEX)
+            {
+                break;
+            }
+
+            modesJson.add(init.activatedModeIndexes[i]);
+        }
+
         JsonObject timeJson = json[F("time")].to<JsonObject>();
         timeJson[F("hours")] = init.env.hours();
         timeJson[F("minutes")] = init.env.minutes();

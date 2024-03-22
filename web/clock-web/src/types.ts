@@ -33,6 +33,7 @@ export type Configs = {
 
 
 export type LiveViewData = {
+  activemodes: number[];
   time: Time;
   colors: Ledmatrix;
 };

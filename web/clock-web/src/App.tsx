@@ -55,7 +55,7 @@ function App() {
         </>)}
         <AccordionPart eventKey="View" header="View Clock">
             <div className="d-flex justify-content-center">
-              <LiveView configs={model} fixedTime={model.fixedTime} onChange={fixedTime => model.fixedTime = fixedTime} />
+              <LiveView modes={model.modes} configs={model} fixedTime={model.fixedTime} onChange={fixedTime => model.fixedTime = fixedTime} />
             </div>
         </AccordionPart>
         <AccordionPart eventKey="Organize" header="Organize Modes">

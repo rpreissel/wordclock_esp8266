@@ -1,4 +1,4 @@
-import { ColorMap, Configs, FixedTime, LiveViewData } from "./types";
+import { ColorMap, Configs, FixedTime, LiveViewData, Mode, Modes, modeName } from "./types";
 import { useEffect, useState } from "react"
 
 import { Form } from "react-bootstrap";
@@ -24,14 +24,15 @@ const LiveRow = ({ textString, colorString, colors }: LiveRowProps) => {
 }
 
 type LiveViewProps = {
+  modes: Mode[];
   fixedTime: FixedTime;
   configs: Configs;
   onChange: (fixedTime: FixedTime) => void
 };
-const LiveView = ({ configs: { colors, leds }, fixedTime, onChange }: LiveViewProps) => {
+const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange }: LiveViewProps) => {
 
   const [data, setData] = useState<LiveViewData | undefined>()
-  
+
   useEffect(() => {
     function loadLiveView() {
       fetch('./api/live')
@@ -54,6 +55,16 @@ const LiveView = ({ configs: { colors, leds }, fixedTime, onChange }: LiveViewPr
     <>
       <div>
         <Form >
+          <Form.Group controlId="formModes" className="mb-1">
+            <Form.Label>
+              {data.activemodes.map((index, i) => {
+                return <>
+                  {i!=0 && <span className="me-1 ms-1">/</span>}
+                  <span>{modeName(modes[index])}</span>
+                </>
+              })}
+            </Form.Label>
+          </Form.Group>
           <Form.Group controlId="formTimer" className="mb-3">
             <div className="d-flex flex-wrap">
               <div className="me-3">
@@ -63,7 +74,7 @@ const LiveView = ({ configs: { colors, leds }, fixedTime, onChange }: LiveViewPr
                   readOnly={!fixedTime.enabled}
                   onChange={e => {
                     const [newHour, newMinute] = e.currentTarget.value.split(":");
-                    onChange({enabled:true, hours:+newHour, minutes:+newMinute})
+                    onChange({ enabled: true, hours: +newHour, minutes: +newMinute })
 
                   }} />
               </div>
@@ -73,10 +84,10 @@ const LiveView = ({ configs: { colors, leds }, fixedTime, onChange }: LiveViewPr
                   label="Fix Time"
                   checked={fixedTime.enabled}
                   onChange={() => {
-                    if(fixedTime.enabled) {
-                      onChange({enabled:false, hours:fixedTime.hours, minutes:fixedTime.minutes})
+                    if (fixedTime.enabled) {
+                      onChange({ enabled: false, hours: fixedTime.hours, minutes: fixedTime.minutes })
                     } else {
-                      onChange({enabled:true, hours:hours, minutes:minutes})
+                      onChange({ enabled: true, hours: hours, minutes: minutes })
                     }
                   }}
                 />

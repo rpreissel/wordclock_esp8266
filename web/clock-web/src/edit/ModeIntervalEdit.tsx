@@ -36,7 +36,6 @@ export function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProp
               onChange({ ...mode, intervals: newIntervals });
             }}>
               {modes
-                .filter((m) => m.type !== "OFF")
                 .filter((m) => m.type !== "EMPTY")
                 .filter(m => m.index != mode.index)
                 .map(m => m as BaseMode)

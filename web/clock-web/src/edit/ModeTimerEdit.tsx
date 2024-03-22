@@ -9,6 +9,21 @@ type ModeTimerEditProps = {
 };
 export function ModeTimerEdit({ mode, modes, onChange }: ModeTimerEditProps) {
   return <>
+    <Form.Group className="mb-1" controlId="formMainMode">
+      <Form.Label>MainMode</Form.Label>
+      <Form.Select value={mode.mainMode} onChange={e => {
+        onChange({ ...mode, mainMode:+e.currentTarget.value });
+      }}>
+        {modes
+          .filter((m) => m.type !== "EMPTY")
+          .filter(m => m.index != mode.index)
+          .map(m => m as BaseMode)
+          .map((m, mi) => {
+            return <option key={mi} value={m.index}>{m.name}</option>;
+          })}
+        <option key={-1} value={-1}>Off</option>;
+      </Form.Select>
+    </Form.Group>
     <Form.Group className="mb-3" controlId="formTimer">
       <div className="d-flex flex-wrap">
         <div className="d-inline-block w-50 p-1">
