@@ -42,7 +42,7 @@ namespace modes
     using ModeConfig = concatenator<EEPROMModeConfig, OffConfig>::type;
     constexpr int EMPTY_MODE_INDEX = -16;
 
-template <typename C, typename... Args>
+    template <typename C, typename... Args>
     const C *castToConfig(const std::variant<Args...> &para)
     {
         return std::visit(
@@ -119,6 +119,7 @@ template <typename C, typename... Args>
     {
         ESP8266WebServer &server;
         Env env;
+        ResetCallback resetCallback;
 
         eeprom::EEPROMConfig eepromConfig;
         ModeConfig modes[eeprom::MODE_COUNT];
@@ -173,8 +174,13 @@ template <typename C, typename... Args>
             return result;
         }
 
-        Initialized(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
+        Initialized(ESP8266WebServer &server,
+                    LEDMatrix &ledmatrix,
+                    UDPLogger &logger,
+                    NTPClientPlus &ntp,
+                    ResetCallback resetCallback)
             : server(server),
+              resetCallback(resetCallback),
               activatedModeIndexes{EMPTY_MODE_INDEX},
               env{
                   ledmatrix,
@@ -224,7 +230,6 @@ template <typename C, typename... Args>
     int loadFromEEProm(Initialized &init);
     void initServerEndpoints(ESP8266WebServer &server);
     void activateRootMode(Initialized &init, int index);
-
 
     template <typename... Args>
     void fromConfig(std::variant<Args...> &para, Env &env, const uint64_t config[], const uint8_t usedConfigs)
@@ -296,7 +301,11 @@ template <typename C, typename... Args>
         reInit<0>(current, env);
     }
 
-    void init(ESP8266WebServer &server, LEDMatrix &ledmatrix, UDPLogger &logger, NTPClientPlus &ntp)
+    void init(ESP8266WebServer &server,
+              LEDMatrix &ledmatrix,
+              UDPLogger &logger,
+              NTPClientPlus &ntp,
+              ResetCallback resetCallback)
     {
         initServerEndpoints(server);
         std::visit(
@@ -307,7 +316,7 @@ template <typename C, typename... Args>
                     // Init EEPROM
                     EEPROM.begin(sizeof(eeprom::EEPROMConfig));
 
-                    auto &init = moduleState.emplace<Initialized>(server, ledmatrix, logger, ntp);
+                    auto &init = moduleState.emplace<Initialized>(server, ledmatrix, logger, ntp, resetCallback);
                     auto startMode = loadFromEEProm(init);
 
                     logger.logFormatted(F("start with mode: %d"), startMode);
@@ -320,34 +329,39 @@ template <typename C, typename... Args>
             moduleState);
     }
 
+    void initEEProm(Initialized &init)
+    {
+        for (int i = 0; i < eeprom::MODE_COUNT; i++)
+        {
+            init.modes[i].emplace<Empty>();
+        }
+        reInit(wordclock::WordClockHandler::TYPE, init.env, init.modes[0]);
+        reInit(digiclock::DigiClockHandler::TYPE, init.env, init.modes[1]);
+        reInit(automode::TimerModeHandler::TYPE, init.env, init.modes[2]);
+        reInit(automode::IntervalModeHandler::TYPE, init.env, init.modes[3]);
+
+        init.eepromConfig.initMarker = eeprom::INIT_MARKER;
+        for (int i = 0; i < eeprom::MODE_COUNT; i++)
+        {
+            auto &mode = init.eepromConfig.modes[i];
+            mode.type = 0;
+            mode.colorIndex = 0;
+            init.eepromConfig.names[i] = 0;
+        }
+        for (int i = 0; i < eeprom::CONFIG_COUNT; i++)
+        {
+            init.eepromConfig.configs[i] = 0;
+        }
+
+        init.eepromConfig.startMode = 0;
+    }
+
     int loadFromEEProm(Initialized &init)
     {
         EEPROM.get(0, init.eepromConfig);
         if (init.eepromConfig.initMarker != eeprom::INIT_MARKER)
         {
-            for (int i = 0; i < eeprom::MODE_COUNT; i++)
-            {
-                init.modes[i].emplace<Empty>();
-            }
-            reInit(wordclock::WordClockHandler::TYPE, init.env, init.modes[0]);
-            reInit(digiclock::DigiClockHandler::TYPE, init.env, init.modes[1]);
-            reInit(automode::TimerModeHandler::TYPE, init.env, init.modes[2]);
-            reInit(automode::IntervalModeHandler::TYPE, init.env, init.modes[3]);
-
-            init.eepromConfig.initMarker = eeprom::INIT_MARKER;
-            for (int i = 0; i < eeprom::MODE_COUNT; i++)
-            {
-                auto &mode = init.eepromConfig.modes[i];
-                mode.type = 0;
-                mode.colorIndex = 0;
-                init.eepromConfig.names[i] = 0;
-            }
-            for (int i = 0; i < eeprom::CONFIG_COUNT; i++)
-            {
-                init.eepromConfig.configs[i] = 0;
-            }
-
-            init.eepromConfig.startMode = 0;
+            initEEProm(init);
         }
         else
         {
@@ -774,10 +788,46 @@ template <typename C, typename... Args>
         init.server.send(200, "application/json", message);
     }
 
+    void onReset(Initialized &init)
+    {
+        init.env.logger.logFormatted(F("On Reset (%d)"), init.activatedModeIndexes[0]);
+        auto text = init.server.arg("plain");
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, text);
+        if (error)
+        {
+            Serial.println(F("deserializeJson() failed: "));
+            init.server.send(400, "text/plain", error.c_str());
+            return;
+        }
+
+        uint8_t resetFlags = NOTHING;
+        JsonVariantConst wifiVariant = doc[F("wifi")];
+        if (!wifiVariant.isNull() && wifiVariant.as<bool>())
+        {
+            resetFlags |= WIFI | ESP;
+        }
+        JsonVariantConst eepromVariant = doc[F("eeprom")];
+        if (!eepromVariant.isNull() && eepromVariant.as<bool>())
+        {
+            initEEProm(init);
+            activateRootMode(init,0);
+            saveToEEProm(init);
+            resetFlags |= ESP;
+        }
+        init.resetCallback(resetFlags);
+        doc.clear();
+        toJson(init, doc.to<JsonObject>());
+        String message;
+        serializeJsonPretty(doc, message);
+        init.server.send(200, "application/json", message);
+    }
+
     void initServerEndpoints(ESP8266WebServer &server)
     {
         on(server, "/api/modes", HTTP_GET, onGet);
         on(server, "/api/modes", HTTP_PATCH, onChange);
+        on(server, "/api/reset", HTTP_PATCH, onReset);
         on(server, "/api/configs", HTTP_GET, onGetConfig);
         on(server, "/api/live", HTTP_GET, onGetLive);
     }

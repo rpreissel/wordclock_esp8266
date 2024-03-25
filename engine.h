@@ -9,8 +9,20 @@
 
 namespace modes
 {
-    void init(ESP8266WebServer &server, LEDMatrix& ledmatrix, UDPLogger &logger, NTPClientPlus &ntp);
-    void currentModeDescription(String& desc);
+    enum ResetFlags : uint8_t
+    {
+        NOTHING = 0,
+        WIFI = 1,
+        ESP = 2,
+    };
+    using ResetCallback = std::function<void(uint8_t)>;
+
+    void init(ESP8266WebServer &server,
+              LEDMatrix &ledmatrix,
+              UDPLogger &logger,
+              NTPClientPlus &ntp,
+              ResetCallback resetCallback);
+    void currentModeDescription(String &desc);
     void loop(unsigned long millis);
 }
 #endif

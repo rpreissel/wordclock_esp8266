@@ -1,7 +1,7 @@
+import { Button, Form } from "react-bootstrap";
 import { ColorMap, Configs, FixedTime, LiveViewData, Mode, modeName } from "./types";
 import { useEffect, useState } from "react"
 
-import { Form } from "react-bootstrap";
 import { colorIndexToHex } from "./colors";
 import { range } from "./range";
 
@@ -27,11 +27,15 @@ type LiveViewProps = {
   modes: Mode[];
   fixedTime: FixedTime;
   configs: Configs;
-  onChange: (fixedTime: FixedTime) => void
+  onChange: (fixedTime: FixedTime) => void;
+  onResetWifi: () => void;
+  onResetData: () => void;
 };
-const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange }: LiveViewProps) => {
+const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange, onResetWifi, onResetData }: LiveViewProps) => {
 
   const [data, setData] = useState<LiveViewData | undefined>()
+  const [wlanReset, setWlanReset] = useState<string>("")
+  const [dataReset, setDataReset] = useState<string>("")
 
   useEffect(() => {
     function loadLiveView() {
@@ -57,17 +61,16 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange }: Liv
         <Form >
           <Form.Group controlId="formModes" className="mb-1">
             <Form.Label>
-              {data.activemodes.map((index, i) => {
-                return <span key={i}>
-                  {i!=0 && <span className="me-1 ms-1">/</span>}
-                  <span>{modeName(modes[index])}</span>
-                </span>
-              })}
+              Aktiver Mode
             </Form.Label>
+            <Form.Control type="text" readOnly value={data.activemodes.map(index => modeName(modes[index])).join(" / ")} />
           </Form.Group>
           <Form.Group controlId="formTimer" className="mb-3">
+            <Form.Label>
+              Aktuelle Zeit
+            </Form.Label>
             <div className="d-flex flex-wrap">
-              <div className="me-3">
+              <div className="me-3 flex-fill">
                 <Form.Control type="time"
                   size="sm"
                   value={hours.toString().padStart(2, '0') + ":" + minutes.toString().padStart(2, '0')}
@@ -94,14 +97,62 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange }: Liv
               </div>
             </div>
           </Form.Group>
-          <Form.Group className="livegrid">
+          <Form.Group className="livegrid mb-3">
             {range(0, 11).map((row) =>
               <LiveRow key={row} textString={leds[row.toString(16)]} colorString={data.colors[row.toString(16)]} colors={colors} />
             )}
             <LiveRow key="M" textString={leds.M} colorString={"   " + data.colors.M} colors={colors} />
           </Form.Group>
-        </Form>
-      </div>
+          <Form.Group controlId="formWlanReset" className="mb-1">
+            <Form.Label>Wlan Zurücksetzen</Form.Label>
+            <div className="d-flex">
+              <div className="d-inline-block p-1">
+                <Form.Control type="text"
+                  size="sm"
+                  minLength={300}
+                  value={wlanReset}
+                  placeholder="Tippe 'Ja'"
+                  onChange={e =>
+                    setWlanReset(e.currentTarget.value)
+                  } />
+              </div>
+              <div className="d-inline-block w-25 p-1">
+                <Button className="action" type="button" size="sm" variant="danger" disabled={wlanReset != 'Ja'} onClick={() => {
+                  onResetWifi();
+                  setWlanReset("");
+                }}>
+                  Reset
+                </Button>
+              </div>
+
+            </div>
+          </Form.Group>
+          <Form.Group controlId="formDataReset">
+            <Form.Label>Daten Zurücksetzen</Form.Label>
+            <div className="d-flex">
+              <div className="d-inline-block p-1">
+                <Form.Control type="text"
+                  size="sm"
+                  minLength={300}
+                  value={dataReset}
+                  placeholder="Tippe 'Ja'"
+                  onChange={e =>
+                    setDataReset(e.currentTarget.value)
+                  } />
+              </div>
+              <div className="d-inline-block w-25 p-1">
+                <Button className="action" type="button" size="sm" variant="danger" disabled={dataReset != 'Ja'} onClick={() => {
+                  onResetData();
+                  setDataReset("");
+                }}>
+                  Reset
+                </Button>
+              </div>
+
+            </div>
+          </Form.Group>
+        </Form >
+      </div >
 
     </>
   )

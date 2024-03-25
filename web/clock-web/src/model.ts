@@ -8,6 +8,8 @@ type ModesModel = Readonly<Modes> & Readonly<Configs> & {
   changeMode(mode:Mode):void;
   changeModes(modes:{ index: number, type: string, name: string }[]):void;
   get currentMode(): Mode;
+  resetWifi():void;
+  resetData():void;
 }
 export function useModel(): [ModesModel | undefined] {
   const [config, setConfig] = useState<Configs | undefined>();
@@ -139,8 +141,37 @@ export function useModel(): [ModesModel | undefined] {
         return {type:"OFF", index: this.current};
       }
       return this.modes[this.current];
-    }
+    },
+
+    resetWifi() {
+      setTimeout(()=> location.reload(),3000);
+      fetch("./api/reset", {
+        method: "PATCH",
+        body: JSON.stringify({ wifi:true }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          setModes(data);
+          setVersion(version+1);
+          console.log(data);
+        })
+        .catch((error) => console.log(error));
+    },
     
+    resetData() {
+      setTimeout(()=> location.reload(),3000);
+      fetch("./api/reset", {
+        method: "PATCH",
+        body: JSON.stringify({ eeprom:true }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          setModes(data);
+          setVersion(version+1);
+          console.log(data);
+        })
+        .catch((error) => console.log(error));
+    },
   }
 
   return [model];

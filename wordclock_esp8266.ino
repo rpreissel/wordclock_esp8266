@@ -21,7 +21,6 @@
  *
  */
 
-#include "secrets.h" // rename the file example_secrets.h to secrets.h after cloning the project. More information in README.md
 #include <LittleFS.h>
 #include <Adafruit_GFX.h>       // https://github.com/adafruit/Adafruit-GFX-Library
 #include <Adafruit_NeoMatrix.h> // https://github.com/adafruit/Adafruit_NeoMatrix
@@ -48,6 +47,10 @@
 // ----------------------------------------------------------------------------------
 //                                        CONSTANTS
 // ----------------------------------------------------------------------------------
+
+// credentials for Access Point
+#define AP_SSID "WordclockAP"
+#define AP_PASS "appassword"
 
 #define NEOPIXELPIN 12 // pin to which the NeoPixels are attached
 #define NUMPIXELS 125  // number of pixels attached to Attiny85
@@ -148,7 +151,7 @@ void setup()
 
   /** Use WiFiMaanger for handling initial Wifi setup **/
 
-  /*
+  
     // Local intialization. Once its business is done, there is no need to keep it around
 
 
@@ -172,10 +175,10 @@ void setup()
     // Turn off minutes leds
     ledmatrix.setMinIndicator(15, 0);
     ledmatrix.drawOnMatrixInstant();
-  */
-
+  
   /** (alternative) Use directly STA/AP Mode of ESP8266   **/
 
+/*
   // We start by connecting to a WiFi network
   Serial.print("Connecting to ");
   Serial.println(WIFI_SSID);
@@ -227,6 +230,7 @@ void setup()
     Serial.print("AP IP address: ");
     Serial.println(myIP);
   }
+  */
 
   // init ESP8266 File manager (LittleFS)
   littleFSServer.setup();
@@ -290,7 +294,17 @@ void setup()
   logger.logFormatted(F("Time: %s"), ntp.getFormattedTime());
   logger.logFormatted(F("TimeOffset (seconds): %d"), ntp.getTimeOffset());
 
-  modes::init(server, ledmatrix, logger,ntp);
+  modes::init(server, ledmatrix, logger,ntp,[](uint8_t resetFlags) {
+    if(resetFlags & modes::ResetFlags::WIFI)
+    {
+      wifiManager.resetSettings();
+    }
+
+    if(resetFlags & modes::ResetFlags::ESP)
+    {
+      ESP.reset();
+    }
+  });
 }
 
 // ----------------------------------------------------------------------------------

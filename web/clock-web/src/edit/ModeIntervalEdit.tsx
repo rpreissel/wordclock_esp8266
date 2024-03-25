@@ -45,15 +45,15 @@ export function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProp
               <option key={-1} value={-1}>Off</option>;
             </Form.Select>
           </div>
-          <div className="d-inline-block w-25 p-1">
-            <Button className="action float-end" type="button" variant="danger" disabled={mode.intervals.length < 3} onClick={() => {
-              const newIntervals = [...mode.intervals];
-              newIntervals.splice(i, 1);
-              onChange({ ...mode, intervals: newIntervals });
-            }}>
-              Delete
-            </Button>
-          </div>
+            <div className="d-inline-block w-25 p-1">
+              <Button className="action float-end" type="button" variant="danger" disabled={mode.intervals.length < 3} onClick={() => {
+                const newIntervals = [...mode.intervals];
+                newIntervals.splice(i, 1);
+                onChange({ ...mode, intervals: newIntervals });
+              }}>
+                Delete
+              </Button>
+            </div>
         </div>);
       })}
       <div className="d-flex justify-content-end">
