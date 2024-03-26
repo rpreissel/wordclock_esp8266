@@ -22,7 +22,7 @@ const ModesManage = ({ modes, configs, onSave }: ModesManageProps) => {
         <Form.Group className="mb-3" controlId="formModes">
             <div className="d-flex">
                 <div className="d-inline-block p-1">
-                    <Form.Label>Name / Type</Form.Label>
+                    <Form.Label>Name / Typ</Form.Label>
                 </div>
             </div>
             {newModes.map((mode, i) => {
@@ -55,10 +55,10 @@ const ModesManage = ({ modes, configs, onSave }: ModesManageProps) => {
             })}
         </Form.Group>
         <Button variant="primary" type="submit" className="me-2" disabled={!changed}>
-            Submit
+            Speichern
         </Button>
         <Button variant="secondary" type="reset" disabled={!changed}>
-            Reset
+            Abbrechen
         </Button>
 
     </Form>

@@ -10,7 +10,7 @@ type ModeWordClockEditProps = {
 export function ModeWordClockEdit({ mode, configs, onChange }: ModeWordClockEditProps) {
   return <>
     <Form.Group className="mb-3" controlId="formDefs">
-      <Form.Label>Times</Form.Label>
+      <Form.Label>Zeitansagen</Form.Label>
       {Object.keys(configs.times).map((timedIndex, i) => {
         const go = configs.times[timedIndex];
         return <Form.Select key={i} value={mode.times[timedIndex]} className="mb-1" onChange={e => {

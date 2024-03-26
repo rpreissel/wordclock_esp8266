@@ -10,7 +10,7 @@ export const rgbToHex = (color: Color) => {
 };
 
 export const colorIndexToHex = (
-  colorIndex: number,
+  colorIndex: string,
   colors: ColorMap | undefined
 ) => {
   const color = colors?.[colorIndex];

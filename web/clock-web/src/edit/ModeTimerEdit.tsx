@@ -10,7 +10,7 @@ type ModeTimerEditProps = {
 export function ModeTimerEdit({ mode, modes, onChange }: ModeTimerEditProps) {
   return <>
     <Form.Group className="mb-1" controlId="formMainMode">
-      <Form.Label>MainMode</Form.Label>
+      <Form.Label>Standart-Modus</Form.Label>
       <Form.Select value={mode.mainMode} onChange={e => {
         onChange({ ...mode, mainMode:+e.currentTarget.value });
       }}>
@@ -21,16 +21,16 @@ export function ModeTimerEdit({ mode, modes, onChange }: ModeTimerEditProps) {
           .map((m, mi) => {
             return <option key={mi} value={m.index}>{m.name}</option>;
           })}
-        <option key={-1} value={-1}>Off</option>;
+        <option key={-1} value={-1}>Aus</option>;
       </Form.Select>
     </Form.Group>
     <Form.Group className="mb-3" controlId="formTimer">
       <div className="d-flex flex-wrap">
         <div className="d-inline-block w-50 p-1">
-          <Form.Label>Start</Form.Label>
+          <Form.Label>Startzeit</Form.Label>
         </div>
         <div className="d-inline-block w-50 p-1">
-          <Form.Label>End</Form.Label>
+          <Form.Label>Endezeit</Form.Label>
         </div>
       </div>
       {mode.timers.map((timer, i) => {
@@ -68,28 +68,28 @@ export function ModeTimerEdit({ mode, modes, onChange }: ModeTimerEditProps) {
                 .map((m, mi) => {
                   return <option key={mi} value={m.index}>{m.name}</option>;
                 })}
-              <option key={-1} value={-1}>Off</option>;
+              <option key={-1} value={-1}>Aus</option>;
             </Form.Select>
           </div>
           <div className="d-inline-block w-25 p-1">
-            <Button className="action float-end" type="button" variant="danger" disabled={mode.timers.length < 2} onClick={() => {
+            <Button className="float-end" type="button" variant="danger" disabled={mode.timers.length < 2} onClick={() => {
               const newTimers = [...mode.timers];
               newTimers.splice(i, 1);
               onChange({ ...mode, timers: newTimers });
             }}>
-              Delete
+              Löschen
             </Button>
           </div>
         </div>);
       })}
       <div className="d-flex justify-content-end">
         <div className="d-inline-block w-25 p-1">
-          <Button type="button" variant="info" className="action float-end" onClick={() => {
+          <Button type="button" variant="info" className="float-end" onClick={() => {
             const newTimers = [...mode.timers];
             newTimers.push({ mode: -1, startHour: 0, startMinute: 0, endHour: 1, endMinute: 0 });
             onChange({ ...mode, timers: newTimers });
           }}>
-            Add
+            Neu
           </Button>
         </div>
       </div>

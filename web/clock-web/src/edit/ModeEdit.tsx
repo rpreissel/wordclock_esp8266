@@ -32,7 +32,7 @@ function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
   }
   if (newMode.type == "PICTURE") {
     formContent = <>
-      <ModeBaseEdit mode={newMode} colorLabel="Color1" {...props} onChange={mode => setState({ mode, changed: true })} />
+      <ModeBaseEdit mode={newMode} colorLabel="Farbe 1" {...props} onChange={mode => setState({ mode, changed: true })} />
       <ModePictureEdit mode={newMode} {...props} onChange={mode => setState({ mode, changed: true })} />
     </>
   }
@@ -55,11 +55,11 @@ function ModeEdit({ mode, onSave, ...props }: ModeEditProps) {
     <div className="d-flex justify-content-start" >
       <div className="d-inline-block p-1">
 
-        <Button variant="primary" type="submit" className="action me-2" disabled={!changed}>
-          Submit
+        <Button variant="primary" type="submit" className="me-2" disabled={!changed}>
+          Speichern
         </Button>
-        <Button variant="secondary" type="reset" className="action" disabled={!changed}>
-          Reset
+        <Button variant="secondary" type="reset" disabled={!changed}>
+          Abbrechen
         </Button>
       </div>
     </div>

@@ -57,6 +57,7 @@ export type EmptyMode = IndexMode & {
 
 export type OffMode = IndexMode & {
   type: "OFF";
+  name?: string;
 };
 
 export type WordClockMode = BaseMode & {
@@ -115,8 +116,8 @@ export type Modes = {
   fixedTime: FixedTime;
 };
 
-export function modeName(mode:Mode) {
-  if('name' in mode) {
+export function modeName(mode:Mode): string {
+  if('name' in mode && mode.name) {
     return mode.name;
   }
 
@@ -125,7 +126,7 @@ export function modeName(mode:Mode) {
 
 export function modeFromIndex(index:number,modes:Mode[]):Mode {
   if(index <0) {
-    return {type:'OFF', index:index};
+    return {type:'OFF', index:index, name: "Aus"};
   }
 
   return modes[index];

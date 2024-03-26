@@ -64,14 +64,20 @@ using Color = std::tuple<const char *, uint32_t>;
 // seven predefined colors24bit (green, red, yellow, purple, orange, lightgreen, blue)
 const Color COLORS[] = {
     {"off", LEDMatrix::Color24bit(0, 0, 0)},
-    {"green", LEDMatrix::Color24bit(0, 255, 0)},
     {"red", LEDMatrix::Color24bit(255, 0, 0)},
-    {"yellow", LEDMatrix::Color24bit(200, 200, 0)},
-    {"purple", LEDMatrix::Color24bit(255, 0, 200)},
-    {"orange", LEDMatrix::Color24bit(255, 128, 0)},
-    {"lightgreen", LEDMatrix::Color24bit(0, 128, 0)},
+    {"rose", LEDMatrix::Color24bit(255, 0, 128)},
+    {"magenta", LEDMatrix::Color24bit(255, 0, 255)},
+    {"violet", LEDMatrix::Color24bit(128, 0, 255)},
+    {"purple", LEDMatrix::Color24bit(128, 0, 128)},
+    {"blue", LEDMatrix::Color24bit(0, 0, 255)},
+    {"skyblue", LEDMatrix::Color24bit(0, 128, 255)},
     {"white", LEDMatrix::Color24bit(255, 255, 255)},
-    {"blue", LEDMatrix::Color24bit(0, 0, 255)}};
+    {"lime", LEDMatrix::Color24bit(0, 255, 0)},
+    {"springgreen", LEDMatrix::Color24bit(0, 255, 128)},
+    {"green", LEDMatrix::Color24bit(0, 128, 0)},
+    {"lawngreen", LEDMatrix::Color24bit(128, 255, 0)},
+    {"yellow", LEDMatrix::Color24bit(200, 200, 0)},
+    {"orange", LEDMatrix::Color24bit(255, 128, 0)}};
 
 constexpr uint8_t NUM_COLORS  = sizeof(COLORS) / sizeof(Color);
 

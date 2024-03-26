@@ -1,5 +1,5 @@
 import { Button, Form } from "react-bootstrap";
-import { ColorMap, Configs, FixedTime, LiveViewData, Mode, modeName } from "./types";
+import { ColorMap, Configs, FixedTime, LiveViewData, Mode, modeFromIndex, modeName } from "./types";
 import { useEffect, useState } from "react"
 
 import { colorIndexToHex } from "./colors";
@@ -14,7 +14,7 @@ type LiveRowProps = {
 const LiveRow = ({ textString, colorString, colors }: LiveRowProps) => {
   return <>
     {range(0, 11).map((col) => {
-      const color = col < colorString.length && colorString[col] != ' ' ? colorIndexToHex(+colorString[col], colors) : undefined;
+      const color = col < colorString.length && colorString[col] != ' ' ? colorIndexToHex(colorString[col], colors) : undefined;
       return <div key={col} className="livecell" style={{ color: color }}>
         {color && col < textString.length ? textString[col] : ' '}
       </div>;
@@ -63,7 +63,7 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange, onRes
             <Form.Label>
               Aktiver Mode
             </Form.Label>
-            <Form.Control type="text" readOnly value={data.activemodes.map(index => modeName(modes[index])).join(" / ")} />
+            <Form.Control type="text" readOnly value={data.activemodes.map(index => modeName(modeFromIndex(index,modes))).join(" / ")} />
           </Form.Group>
           <Form.Group controlId="formTimer" className="mb-3">
             <Form.Label>
@@ -84,7 +84,7 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange, onRes
               <div className="p-1">
                 <Form.Check // prettier-ignore
                   type="switch"
-                  label="Fix Time"
+                  label="Fixiere"
                   checked={fixedTime.enabled}
                   onChange={() => {
                     if (fixedTime.enabled) {
@@ -117,11 +117,11 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange, onRes
                   } />
               </div>
               <div className="d-inline-block w-25 p-1">
-                <Button className="action" type="button" size="sm" variant="danger" disabled={wlanReset != 'Ja'} onClick={() => {
+                <Button type="button" size="sm" variant="danger" disabled={wlanReset != 'Ja'} onClick={() => {
                   onResetWifi();
                   setWlanReset("");
                 }}>
-                  Reset
+                  Zurücksetzen
                 </Button>
               </div>
 
@@ -141,11 +141,11 @@ const LiveView = ({ modes, configs: { colors, leds }, fixedTime, onChange, onRes
                   } />
               </div>
               <div className="d-inline-block w-25 p-1">
-                <Button className="action" type="button" size="sm" variant="danger" disabled={dataReset != 'Ja'} onClick={() => {
+                <Button type="button" size="sm" variant="danger" disabled={dataReset != 'Ja'} onClick={() => {
                   onResetData();
                   setDataReset("");
                 }}>
-                  Reset
+                  Zurücksetzen
                 </Button>
               </div>
 

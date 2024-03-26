@@ -15,7 +15,7 @@ function ModeThumbnail({ mode, color, active, onClick }: ModeThumbnailProps) {
   const classes = "thumbnail btn m-2 overflow-hidden " + (active ? "active-thumbnail" : "");
   if (mode.type == "OFF") {
     return (
-        <button style={{ backgroundColor: color}} className={classes} onClick={() =>onClick(mode.index)}>Off</button>
+        <button style={{ backgroundColor: color}} className={classes} onClick={() =>onClick(mode.index)}>Aus</button>
     );
   }
 

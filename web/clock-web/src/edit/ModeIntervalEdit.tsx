@@ -12,10 +12,10 @@ export function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProp
     <Form.Group className="mb-3" controlId="formInterval">
       <div className="d-flex">
         <div className="d-inline-block w-25 p-1">
-          <Form.Label>Seconds</Form.Label>
+          <Form.Label>Sekunden</Form.Label>
         </div>
         <div className="d-inline-block flex-fill p-1">
-          <Form.Label>Mode</Form.Label>
+          <Form.Label>Modus</Form.Label>
         </div>
       </div>
       {mode.intervals.map((interval, i) => {
@@ -42,28 +42,28 @@ export function ModeIntervalEdit({ mode, modes, onChange }: ModeIntervalEditProp
                 .map((m, mi) => {
                   return <option key={mi} value={m.index}>{m.name}</option>;
                 })}
-              <option key={-1} value={-1}>Off</option>;
+              <option key={-1} value={-1}>Aus</option>;
             </Form.Select>
           </div>
             <div className="d-inline-block w-25 p-1">
-              <Button className="action float-end" type="button" variant="danger" disabled={mode.intervals.length < 3} onClick={() => {
+              <Button className="float-end" type="button" variant="danger" disabled={mode.intervals.length < 3} onClick={() => {
                 const newIntervals = [...mode.intervals];
                 newIntervals.splice(i, 1);
                 onChange({ ...mode, intervals: newIntervals });
               }}>
-                Delete
+                Löschen
               </Button>
             </div>
         </div>);
       })}
       <div className="d-flex justify-content-end">
         <div className="d-inline-block w-25 p-1">
-          <Button type="button" variant="info" className="action float-end" onClick={() => {
+          <Button type="button" variant="info" className="float-end" onClick={() => {
             const newIntervals = [...mode.intervals];
             newIntervals.push({ seconds: 10, mode: -1 });
             onChange({ ...mode, intervals: newIntervals });
           }}>
-            Add
+            Neu
           </Button>
         </div>
       </div>

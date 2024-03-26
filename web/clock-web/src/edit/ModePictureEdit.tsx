@@ -43,11 +43,11 @@ export function ModePictureEdit({ mode, configs, onChange }: ModePictureEditProp
   };
   return <>
     <Form.Group className="mb-1" controlId="formColor1">
-      <Form.Label>Color2</Form.Label>
+      <Form.Label>Farbe 2</Form.Label>
       <ColorChooser value={mode.color1} colors={configs.colors} showOffColor onChange={c => onChange({ ...mode, color1: c })} />
     </Form.Group>
     <Form.Group className="mb-1" controlId="formColor2">
-      <Form.Label>Color3</Form.Label>
+      <Form.Label>Farbe 3</Form.Label>
       <ColorChooser value={mode.color2} colors={configs.colors} showOffColor onChange={c => onChange({ ...mode, color2: c })} />
     </Form.Group>
     <hr />
@@ -59,21 +59,21 @@ export function ModePictureEdit({ mode, configs, onChange }: ModePictureEditProp
         value={"1"}
         checked={color === "1"}
         variant="secondary"
-        onChange={() => setColor("1")}> Color1 </ToggleButton>
+        onChange={() => setColor("1")}> Farbe 1 </ToggleButton>
       <ToggleButton
         id="color2"
         type="radio"
         value={"2"}
         checked={color === "2"}
         variant="secondary"
-        onChange={() => setColor("2")}> Color2 </ToggleButton>
+        onChange={() => setColor("2")}> Farbe 2 </ToggleButton>
       <ToggleButton
         id="color3"
         type="radio"
         value={"3"}
         variant="secondary"
         checked={color === "3"}
-        onChange={() => setColor("3")}> Color3 </ToggleButton>
+        onChange={() => setColor("3")}> Farbe 3 </ToggleButton>
         </ButtonGroup>
     </div>
     <div className="picgrid mb-2">
